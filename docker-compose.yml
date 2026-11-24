@@ -1,0 +1,22 @@
+# Vorlage für Test- und Produktivserver.
+# Image und Umgebung trägt die Pipeline ein; HOST_PORT und die übrigen Variablen kommen aus dem Portainer-Stack.
+services:
+  app:
+    image: ghcr.io/matthiasknauff/zuhause:test-99e0182
+    container_name: zuhause-test
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT}:8080"
+    environment:
+      APP_ENV: test
+      TZ: Europe/Berlin
+      ADMIN_BENUTZER: ${ADMIN_BENUTZER}
+      ADMIN_PASSWORT: ${ADMIN_PASSWORT}
+      OPENHAB_TOKEN: ${OPENHAB_TOKEN}
+      OPENHAB_URL: ${OPENHAB_URL}
+    volumes:
+      - daten:/data
+
+volumes:
+  daten:
+    name: ${VOLUME_NAME}

@@ -1,7 +1,7 @@
 // Startseite: frei zusammenstellbar, getrennt für PC und Handy.
 // PC: am Griff ziehen · Handy: lange drücken und ziehen · Ecke unten rechts = Größe · × = entfernen
 import { h, icon, live, api, melde, dialog, leeren, zahl, de, grad } from './kern.js';
-import { M, S, st, item, lichter, lichtAn, aussenTemp } from './modell.js';
+import { M, S, st, item, lichter, lichtAn, aussenTemp, punktName } from './modell.js';
 import { geraetInhalt, heizInhalt, alleLichterInhalt, hausInhalt, heuteInhalt, raumInhalt, kopf, kipp, wertText } from './widgets.js';
 import { befehl } from './kern.js';
 
@@ -47,7 +47,7 @@ function inhalt(e) {
     case 'punkt': {
       const i = item(e.ref); if (!i) return fehlt(e);
       const geraetName = [...M.geraete.values()].find((x) => x.alle.includes(i.name));
-      return live(() => kopf(i.label || i.name, geraetName ? geraetName.label : '', i.type === 'Switch' && !i.readOnly ? kipp(st(i.name) === 'ON', (x) => befehl(i.name, x ? 'ON' : 'OFF'), i.label) : h('span', { class: 'gross' }, wertText(i))));
+      return live(() => kopf(punktName(i), geraetName ? geraetName.label : '', i.type === 'Switch' && !i.readOnly ? kipp(st(i.name) === 'ON', (x) => befehl(i.name, x ? 'ON' : 'OFF'), punktName(i)) : h('span', { class: 'gross' }, wertText(i))));
     }
     case 'alleLichter': return live(() => alleLichterInhalt());
     case 'haus': return live(() => hausInhalt());
@@ -203,13 +203,13 @@ function angebot() {
   gruppen.push(['Besonderes', BESONDERE.filter((b) => treffer(b.name)).map((b) => ({ art: b.art, name: b.name, text: b.text, groesse: 'm' }))]);
   gruppen.push(['Räume', M.raeume.filter((r) => treffer(r.label)).map((r) => ({ art: 'raum', ref: r.name, name: r.label, text: r.geraete.length + ' Geräte', groesse: 's' }))]);
   const KL = { licht: 'Licht', heizung: 'Heizung', steckdose: 'Steckdose', sensor: 'Sensor', zaehler: 'Zähler', sonst: 'Gerät' };
-  for (const r of [...M.raeume, { label: 'Ohne Raum', geraete: M.ohneRaum }]) {
-    const g = r.geraete.filter((x) => treffer(x.label + ' ' + r.label + ' ' + KL[x.klasse]));
+  for (const r of M.raeume) {
+    const g = r.geraete.filter((x) => treffer(x.label + ' ' + r.label + ' ' + KL[x.klasse] + ' ' + x.openhabLabel));
     if (g.length) gruppen.push([r.label, g.map((x) => ({ art: x.klasse === 'heizung' ? 'heizung' : 'geraet', ref: x.name, name: x.label, text: KL[x.klasse], groesse: x.klasse === 'heizung' || (x.klasse === 'licht' && (x.p.farbe || x.p.dimmer)) ? 'm' : 's' }))]);
   }
   if (q.length >= 2) {
     const w = [];
-    for (const g of M.geraete.values()) for (const n of g.alle) { const i = item(n); if (i && treffer(i.label + ' ' + g.label)) w.push({ art: 'punkt', ref: n, name: i.label + ' · ' + g.label, text: wertText(i), groesse: 's' }); }
+    for (const g of M.geraete.values()) for (const n of g.alle) { const i = item(n); if (i && treffer(punktName(i) + ' ' + i.label + ' ' + g.label)) w.push({ art: 'punkt', ref: n, name: punktName(i) + ' · ' + g.label, text: wertText(i), groesse: 's' }); }
     if (w.length) gruppen.push(['Einzelwerte', w.slice(0, 40)]);
   }
   return gruppen.filter(([, l]) => l.length);

@@ -36,6 +36,22 @@ oh.starten();
 const lampenDatei = path.join(cfg.daten, 'lampen.json');
 let lampen = {}; try { lampen = JSON.parse(fs.readFileSync(lampenDatei, 'utf8')); } catch (e) { /* noch keine */ }
 
+// Eigene Namen und Raumzuordnung je Gerät (überschreiben die Vorgaben aus openHAB nur in dieser App)
+const namenDatei = path.join(cfg.daten, 'namen.json');
+let namen = { geraete: {} }; try { namen = JSON.parse(fs.readFileSync(namenDatei, 'utf8')); } catch (e) { /* noch keine */ }
+function namenSetzen(k) {
+  const g = {};
+  for (const [n, v] of Object.entries((k && k.geraete) || {})) {
+    if (!/^[A-Za-z0-9_]{1,120}$/.test(n) || !v || typeof v !== 'object') continue;
+    const e = {};
+    if (typeof v.label === 'string' && v.label.trim()) e.label = v.label.trim().slice(0, 60);
+    if (typeof v.raum === 'string' && /^[A-Za-z0-9_:]{1,120}$/.test(v.raum)) e.raum = v.raum;
+    if (v.versteckt === true) e.versteckt = true;
+    if (Object.keys(e).length) g[n] = e;
+  }
+  namen = { geraete: g }; fs.writeFileSync(namenDatei, JSON.stringify(namen, null, 1)); return namen;
+}
+
 // ------------------------------------------------------------------ Live-Ereignisse an die Browser
 const zuhoerer = new Set();
 const senden = (art, daten) => { const z = `event: ${art}\ndata: ${JSON.stringify(daten)}\n\n`; for (const r of zuhoerer) r.write(z); };
@@ -83,6 +99,8 @@ const routen = [
   ['GET', /^\/api\/items$/, () => [...oh.items.values()]],
   ['POST', /^\/api\/item\/([A-Za-z0-9_]+)$/, async (m, k) => { await oh.befehl(m[1], k.wert); }],
   ['GET', /^\/api\/lampen$/, () => lampen],
+  ['GET', /^\/api\/namen$/, () => namen],
+  ['PUT', /^\/api\/namen$/, (m, k, b) => { nurAdmin(b); return namenSetzen(k); }],
   ['PUT', /^\/api\/lampen\/([A-Za-z0-9_]+)$/, (m, k) => {
     const st = {};
     for (const [id, v] of Object.entries(k || {})) { if (!/^[a-z]{2,20}$/.test(id) || !/^\d{1,3},\d{1,3},\d{1,3}$/.test(v)) throw new Error('Ungültige Stimmung'); st[id] = v; }

@@ -106,6 +106,7 @@ async function zeigen() {
   document.title = (SEITEN.find((s) => s.id === id) || SEITEN[0]).name + ' · Zuhause';
 }
 window.addEventListener('hashchange', zeigen);
+window.addEventListener('modell-neu', async () => { try { S.namen = await api('namen'); aufbauen(await api('items')); } catch (e) { /* bleibt */ } zeigen(); });
 let rz = null;
 window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if ((innerWidth < HANDY_BREITE ? 'handy' : 'pc') !== letzteAnsicht) zeigen(); }, 250); });
 
@@ -137,8 +138,8 @@ window.addEventListener('abgemeldet', () => { if (quelle) quelle.close(); S.ich 
 async function starten() {
   try { S.ich = await api('ich'); } catch (e) { anmeldeSeite(); return; }
   darstellungAnwenden();
-  const [items, lampen, status] = await Promise.all([api('items'), api('lampen').catch(() => ({})), api('status').catch(() => null)]);
-  aufbauen(items); S.lampen = lampen; S.status = status;
+  const [items, lampen, status, namen] = await Promise.all([api('items'), api('lampen').catch(() => ({})), api('status').catch(() => null), api('namen').catch(() => ({ geraete: {} }))]);
+  S.namen = namen; aufbauen(items); S.lampen = lampen; S.status = status;
   if (status) verbunden = status.openhab.verbunden;
   try { S.heizung = await api('heizung'); } catch (e) { S.heizung = null; }
   geruest();

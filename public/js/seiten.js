@@ -13,10 +13,36 @@ function geraetKarte(g, { mitRaum = false, alle = false } = {}) {
   const art = g.klasse === 'heizung' ? 'heizung' : 'geraet';
   const k = h('div', { class: 'karte geraet k-' + g.klasse + (groesse === 'voll' && g.klasse === 'licht' ? ' breit' : '') });
   const werte = h('div', { class: 'alle-werte', hidden: !alle });
-  k.append(h('div', { class: 'karte-ecke' }, stern(art, g.name, g.klasse === 'heizung' || g.p.dimmer || g.p.farbe ? 'm' : 's')),
+  k.append(h('div', { class: 'karte-ecke' }, S.ich.benutzer.rolle === 'admin' ? h('button', { class: 'stern', title: 'Name und Raum ändern', 'aria-label': g.label + ': Name und Raum ändern', onclick: (e) => { e.stopPropagation(); umbenennen(g); } }, icon('stift', 16)) : null, stern(art, g.name, g.klasse === 'heizung' || g.p.dimmer || g.p.farbe ? 'm' : 's')),
     live(() => geraetInhalt(g, groesse, mitRaum)), werte);
-  if (alle) werte.append(live(() => alleWerte(g)));
+  if (alle && g.alle.length > 1) werte.append(live(() => alleWerte(g)));
   return k;
+}
+
+/** Name, Raum und Sichtbarkeit eines Geräts in dieser App ändern (openHAB bleibt unverändert) – nur Admins */
+function umbenennen(g) {
+  const alt = (S.namen.geraete || {})[g.name] || {};
+  const name = h('input', { type: 'text', value: alt.label || '', placeholder: g.label, maxlength: 60, 'aria-label': 'Name' });
+  const raum = h('select', { 'aria-label': 'Raum' },
+    h('option', { value: '' }, 'wie in openHAB' + (g.openhabRaum ? ' (' + M.raumName(g.openhabRaum) + ')' : ' (keiner)')),
+    M.alleRaeume.map((r) => h('option', { value: r.name, selected: alt.raum === r.name }, r.label)));
+  const weg = h('input', { type: 'checkbox', checked: !!alt.versteckt });
+  dialog('Gerät: ' + g.label, h('div', null,
+    h('label', { class: 'formzeile' }, h('span', { class: 'leise' }, 'Name'), name),
+    h('label', { class: 'formzeile' }, h('span', { class: 'leise' }, 'Raum'), raum),
+    h('label', { class: 'haken', style: { marginTop: '12px' } }, weg, 'Ausblenden (nur noch unter Geräte → Ausgeblendet)'),
+    h('p', { class: 'leise klein' }, 'In openHAB heißt es „' + g.openhabLabel + '“ (' + g.name + '). Die Änderung gilt nur in dieser App und für alle Benutzer; leer lassen = Name aus openHAB.')), {
+    knoepfe: [{ text: 'Speichern', klasse: 'knopf', aktion: async () => {
+      const geraete = { ...(S.namen.geraete || {}) };
+      const e = {};
+      if (name.value.trim()) e.label = name.value.trim();
+      if (raum.value) e.raum = raum.value;
+      if (weg.checked) e.versteckt = true;
+      if (Object.keys(e).length) geraete[g.name] = e; else delete geraete[g.name];
+      S.namen = await api('namen', 'PUT', { geraete });
+      melde('Gespeichert'); window.dispatchEvent(new Event('modell-neu'));
+    } }],
+  });
 }
 
 // ------------------------------------------------------------------ Räume
@@ -31,7 +57,7 @@ export function raeumeSeite(z, raumName) {
   const raster = h('div', { class: 'karten-raster' }, sortiert.map((g) => geraetKarte(g, { alle: alleZeigen })));
   leeren(z,
     chips,
-    h('div', { class: 'seitenkopf' }, h('div', null, h('h1', null, r.label), h('p', { class: 'leise' }, r.geraete.length + ' Geräte · alles aus dem openHAB-Raummodell')),
+    h('div', { class: 'seitenkopf' }, h('div', null, h('h1', null, r.label), h('p', { class: 'leise' }, r.geraete.length + ' Geräte · ' + (r.extra ? 'in openHAB keinem Raum zugeordnet' : 'aus dem openHAB-Raummodell'))),
       h('div', { class: 'kopf-rechts' },
         h('span', { class: 'karte-ecke statisch' }, stern('raum', r.name, 's')),
         h('label', { class: 'haken' }, h('input', { type: 'checkbox', checked: alleZeigen, onchange: (e) => { alleZeigen = e.target.checked; raeumeSeite(z, r.name); } }), 'Alle Werte zeigen'),
@@ -42,7 +68,7 @@ export function raeumeSeite(z, raumName) {
 // ------------------------------------------------------------------ Licht
 export function lichtSeite(z) {
   const teile = [h('div', { class: 'seitenkopf' }, h('h1', null, 'Licht')), h('div', { class: 'karte' }, h('div', { class: 'karte-ecke' }, stern('alleLichter', null, 'm')), live(() => alleLichterInhalt()))];
-  for (const r of [...M.raeume, { label: 'Ohne Raum', geraete: M.ohneRaum }]) {
+  for (const r of M.raeume) {
     const l = r.geraete.filter((g) => g.klasse === 'licht');
     if (!l.length) continue;
     teile.push(h('h2', { class: 'abschnitt' }, r.label), h('div', { class: 'karten-raster' }, l.map((g) => geraetKarte(g))));
@@ -82,11 +108,12 @@ export function geraeteSeite(z) {
   const box = h('div');
   const fuelle = () => {
     const q = suche.trim().toLowerCase();
-    const alle = [...M.geraete.values()].filter((g) => !q || (g.label + ' ' + M.raumName(g.raum) + ' ' + KLASSEN[g.klasse]).toLowerCase().includes(q));
+    const alle = [...M.geraete.values()].filter((g) => !g.versteckt && (!q || (g.label + ' ' + g.openhabLabel + ' ' + M.raumName(g.raum) + ' ' + KLASSEN[g.klasse]).toLowerCase().includes(q)));
     leeren(box, ORDNUNG.map((k) => {
       const l = alle.filter((g) => g.klasse === k).sort((a, b) => a.label.localeCompare(b.label, 'de'));
       return l.length ? [h('h2', { class: 'abschnitt' }, KLASSEN[k] + ' (' + l.length + ')'), h('div', { class: 'karten-raster' }, l.map((g) => geraetKarte(g, { mitRaum: true, alle: alleZeigen })))] : null;
-    }), alle.length ? null : h('p', { class: 'leise' }, 'Nichts gefunden.'));
+    }), alle.length ? null : h('p', { class: 'leise' }, 'Nichts gefunden.'),
+    M.versteckt.length ? [h('h2', { class: 'abschnitt' }, 'Ausgeblendet (' + M.versteckt.length + ')'), h('div', { class: 'karten-raster' }, M.versteckt.map((g) => geraetKarte(g, { mitRaum: true })))] : null);
   };
   s.addEventListener('input', () => { suche = s.value; fuelle(); });
   fuelle();

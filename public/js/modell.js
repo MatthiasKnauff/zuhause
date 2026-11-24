@@ -17,6 +17,97 @@ export function schoen(label, name) {
   if (!l) l = String(name).replace(/_/g, ' ');
   return l;
 }
+// ------------------------------------------------------------------ Verständliche Namen
+/** Bezeichnungen von Werten, die openHAB/die Bindings kryptisch oder englisch liefern */
+const PUNKT_NAMEN = [
+  [/^(output|betrieb|energie-status|switch|steckdose)$/i, 'Ein/Aus'],
+  [/^betrieb (\d)$/i, 'Ausgang $1'],
+  [/^(power consumption|stromverbrauch|leistung)$/i, 'Leistung jetzt'],
+  [/^schnitt letzte minute 1$/i, 'Leistung Ø letzte Minute'],
+  [/^(total energy consumption|gesamtverbrauch|energieverbrauch)$/i, 'Verbrauch gesamt'],
+  [/^average energy - last 3 minutes$/i, 'Verbrauch Ø 3 Minuten'],
+  [/^energy - previous minute$/i, 'Verbrauch letzte Minute'],
+  [/^energy - (\d) minutes ago$/i, 'Verbrauch vor $1 Minuten'],
+  [/^aktueller verbrauch$/i, 'Leistung jetzt'],
+  [/^zählerstand$/i, 'Zählerstand'],
+  [/^innentemperatur$/i, 'Temperatur im Gerät'],
+  [/^elektrische spannung$/i, 'Spannung'],
+  [/^device firmware$/i, 'Firmware'],
+  [/^firmwareaktualisierung verfügbar$/i, 'Firmware-Update verfügbar'],
+  [/^connectivity$/i, 'Verbindung'],
+  [/^alert$/i, 'Blinken (Suchen)'],
+  [/^dauer$/i, 'Übergangszeit'],
+  [/^zuletzt gesehen$/i, 'Zuletzt erreichbar'],
+  [/^letzte aktualisierung$/i, 'Zuletzt gemeldet'],
+  [/^letzte aktivität$/i, 'Zuletzt aktiv'],
+  [/^eingang\/taste( \d)?$/i, 'Taster am Gerät$1'],
+  [/^ereignis-anzahl$/i, 'Taster: Anzahl Ereignisse'],
+  [/^letztes ereignis$/i, 'Taster: letztes Ereignis'],
+  [/^ausgangsname$/i, 'Name im Gerät'],
+  [/^gerätename$/i, 'Name im Gerät'],
+  [/^betriebs-led aus$/i, 'Betriebs-LED aus'],
+  [/^status-led aus$/i, 'Status-LED aus'],
+  [/^auto-an-timer$/i, 'Automatisch an nach'],
+  [/^auto-aus timer$/i, 'Automatisch aus nach'],
+  [/^autom\. ein\/aus timer aktiv$/i, 'Automatik-Timer aktiv'],
+  [/^laufzeit$/i, 'Laufzeit seit Neustart'],
+  [/^signalstärke$/i, 'Funksignal'],
+  [/^niedriger batteriestatus$/i, 'Batterie schwach'],
+  [/^batterieladung$/i, 'Batterie'],
+  [/^tür-\/fenster-zustand$/i, 'Fenster'],
+  [/^externes schalten$/i, 'Schalten von außen gesperrt'],
+  [/^tastensperre$/i, 'Tastensperre'],
+  [/^modus\b.*$/i, 'Modus'],
+  [/^solltemperatur$/i, 'Soll-Temperatur'],
+  [/^temperatur$/i, 'Temperatur'],
+  [/^ventilposition$/i, 'Ventil'],
+  [/^auslastungsgrad$/i, 'Funk-Auslastung'],
+  [/^freie speicherplätze$/i, 'Freie Speicherplätze'],
+  [/^farbeffekt$/i, 'Effekt'],
+];
+/** Teil eines Geräts, aus dem ein Wert stammt (bei der Heizung: Wandthermostat, Heizkörper, Fensterkontakt …) */
+export function teilName(quelle) {
+  if (!quelle) return '';
+  const i = M.items.get(quelle);
+  const l = schoen(i && i.label, quelle);
+  if (/^WT[_ ]/i.test(quelle)) return 'Wandthermostat';
+  if (/^HT[_ ]/i.test(quelle)) { const n = /(\d)\s*$/.exec(l.trim()); return 'Heizkörper' + (n ? ' ' + n[1] : ''); }
+  if (/^FK[_ ]/i.test(quelle)) return 'Fensterkontakt';
+  if (/cube/i.test(quelle)) return 'MAX!-Cube';
+  return l;
+}
+/** verständlicher Name eines Werts; Messwerte zweier Sensoren eines Geräts werden über den Item-Namen unterschieden */
+export function punktName(i) {
+  if (!i) return '';
+  let l = String(i.label || '').trim() || String(i.name).replace(/_/g, ' ');
+  for (const [re, neu] of PUNKT_NAMEN) if (re.test(l)) { l = l.replace(re, neu); break; }
+  return l;
+}
+/** Art eines Werts für die Gruppierung in „Alle Werte“ */
+export function punktArt(i) {
+  const l = String(i.label || '');
+  if (i.tags.includes('LowBattery') || /batterie|signal|funk|zuletzt|letzte aktual|letzte aktiv|verbindung|connectivity/i.test(l) || i.type === 'DateTime') return 'zustand';
+  if (/LED aus|timer|firmware|ausgangsname|gerätename|laufzeit|alert|dauer|ereignis|eingang|tastensperre|externes|speicherpl|minute|average/i.test(l)) return 'technik';
+  if (!i.readOnly && /^(Switch|Dimmer|Color|Rollershutter)/.test(i.type)) return 'bedienung';
+  if (i.tags.includes('Setpoint') || (i.tags.includes('Control') && !i.readOnly)) return 'bedienung';
+  if (/modus/i.test(l) && i.type === 'String') return 'bedienung';
+  return 'messung';
+}
+
+/** Geräte, die openHAB keinem Raum zuordnet, kommen in eine dieser Gruppen */
+export const EXTRA_RAEUME = [
+  { name: 'zh:draussen', label: 'Draußen' },
+  { name: 'zh:technik', label: 'Haustechnik' },
+];
+/** Vorgaben für Gerätenamen, die so aus den Bindings kommen und wenig sagen (eigene Namen gehen immer vor) */
+const GERAETE_NAMEN = [
+  [/^FRITZ!?DECT ?200$/i, 'FRITZ!DECT-Steckdose'],
+  [/^BitShake Stromz(ä|a)hler$/i, 'Stromzähler'],
+  [/^Eco[ _-]?Taster$/i, 'Eco-Taster (Heizung)'],
+  [/^Außensensor$/i, 'Außenfühler'],
+];
+const INTERN = /^Heizplan_|^alle_Lichter$|^Heizungsmodus_alle$/;
+
 export const ohneUmlaut = (s) => String(s).toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]/g, '');
 
 export function aufbauen(liste) {
@@ -44,16 +135,31 @@ export function aufbauen(liste) {
     return null;
   };
   for (const i of liste) {
-    if (i.type === 'Group' || !EINZEL_TYPEN.test(i.type) || /^Heizplan_/.test(i.name) || !i.label || inGeraet(i)) continue;
+    if (i.type === 'Group' || !EINZEL_TYPEN.test(i.type) || INTERN.test(i.name) || inGeraet(i)) continue;
     M.geraete.set(i.name, geraet(i, ortVonItem(i), [{ ...i, quelle: null }]));
+  }
+  // Namen und Räume: Vorgaben für kryptische Namen, Geräte ohne Raum nach Draußen bzw. Haustechnik, dann die eigenen Einstellungen
+  const eigene = (S.namen && S.namen.geraete) || {};
+  for (const g of M.geraete.values()) {
+    g.openhabLabel = g.label; g.openhabRaum = g.raum;
+    for (const [re, neu] of GERAETE_NAMEN) if (re.test(g.label)) { g.label = neu; break; }
+    if (!g.raum) g.raum = /au(ss|ß)en|outdoor|wetter|garten|balkon/i.test(g.name + ' ' + g.openhabLabel) ? 'zh:draussen' : 'zh:technik';
+    const e = eigene[g.name];
+    if (e) { if (e.label) g.label = e.label; if (e.raum && (e.raum.startsWith('zh:') || orte.some((o) => o.name === e.raum))) g.raum = e.raum; g.versteckt = !!e.versteckt; }
   }
   const reihenfolge = ['wohnzimmer', 'kueche', 'arbeitszimmer', 'buero', 'schlafzimmer', 'kinderzimmer', 'bad', 'diele', 'flur', 'balkon', 'garten'];
   const rang = (o) => { const x = reihenfolge.indexOf(ohneUmlaut(o.label || o.name)); return x < 0 ? 99 : x; };
   M.raeume = orte.filter((o) => !o.groupNames.some((g) => istOrt(M.items.get(g))) || (M.kinder.get(o.name) || []).some((k) => M.geraete.has(k)))
     .sort((a, b) => rang(a) - rang(b) || (a.label || a.name).localeCompare(b.label || b.name, 'de'))
-    .map((o) => ({ name: o.name, label: schoen(o.label, o.name), geraete: [...M.geraete.values()].filter((g) => g.raum === o.name) }));
-  M.ohneRaum = [...M.geraete.values()].filter((g) => !g.raum);
-  M.raumName = (n) => { const r = M.raeume.find((x) => x.name === n); return r ? r.label : ''; };
+    .map((o) => ({ name: o.name, label: schoen(o.label, o.name), geraete: [...M.geraete.values()].filter((g) => g.raum === o.name && !g.versteckt) }));
+  for (const x of EXTRA_RAEUME) {
+    const geraete = [...M.geraete.values()].filter((g) => g.raum === x.name && !g.versteckt);
+    if (geraete.length) M.raeume.push({ ...x, geraete, extra: true });
+  }
+  M.ohneRaum = [];
+  M.versteckt = [...M.geraete.values()].filter((g) => g.versteckt);
+  M.alleRaeume = [...orte.map((o) => ({ name: o.name, label: schoen(o.label, o.name) })), ...EXTRA_RAEUME];
+  M.raumName = (n) => { const r = M.alleRaeume.find((x) => x.name === n); return r ? r.label : ''; };
 }
 
 /** alle Werte unterhalb einer Gruppe */
@@ -101,7 +207,7 @@ function geraet(g, raum, einzeln) {
   else if (g.tags.includes('TemperatureSensor') || (!p.schalter && (p.temp || p.feuchte))) klasse = 'sensor';
   else if (g.tags.includes('PowerOutlet') || p.schalter) klasse = 'steckdose';
   else if (p.leistung || p.energie) klasse = 'zaehler';
-  return { name: g.name, label, raum, klasse, p, alle: alle.map((i) => i.name) };
+  return { name: g.name, label, raum, klasse, p, alle: alle.map((i) => i.name), teilVon: Object.fromEntries(alle.map((i) => [i.name, i.quelle || null])) };
 }
 
 // ------------------------------------------------------------------ Zustände
@@ -117,7 +223,7 @@ export function helligkeit(g) {
   if (g.p.farbe) return zahl(String(st(g.p.farbe.name)).split(',')[2]);
   return NaN;
 }
-export const lichter = () => [...M.geraete.values()].filter((g) => g.klasse === 'licht' && (g.p.schalter || g.p.dimmer || g.p.farbe));
+export const lichter = () => [...M.geraete.values()].filter((g) => g.klasse === 'licht' && !g.versteckt && (g.p.schalter || g.p.dimmer || g.p.farbe));
 export const geschaltet = (g) => g.p.schalter ? st(g.p.schalter.name) === 'ON' : false;
 export function aussenTemp() {
   const g = [...M.geraete.values()].find((x) => /aussen|außen|outdoor/i.test(x.name + ' ' + x.label) && x.p.temp);

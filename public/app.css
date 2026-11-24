@@ -365,3 +365,11 @@ a.ganz { display: block; color: inherit; text-decoration: none; height: 100%; }
 .karte.el.g-s .k-titel { flex-basis: calc(100% - 44px); }
 .karte.el.g-s .k-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .karte.el.g-s .k-kopf > .kipp, .karte.el.g-s .k-kopf > .knopf { margin-left: 40px; }
+/* Alle Werte: gruppiert */
+.werte-teil + .werte-teil { margin-top: 10px; }
+.werte-teil-name { font-weight: 600; font-size: .9rem; padding: 8px 0 2px; border-top: 2px solid var(--linie); }
+.werte-gruppe { margin-top: 6px; }
+.werte-titel { text-transform: uppercase; letter-spacing: .04em; font-size: .72rem; padding: 4px 0; }
+details.werte-gruppe summary { cursor: pointer; padding: 6px 0; text-transform: uppercase; letter-spacing: .04em; font-size: .72rem; }
+.karte-ecke { display: flex; gap: 2px; }
+.karte.geraet .k-kopf { padding-right: 70px; }

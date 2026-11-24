@@ -1,6 +1,6 @@
 // Bedienelemente für Geräte: Licht (mit Lichtstimmungen und Abgleich), Heizung, Steckdosen, Sensoren, Alle Lichter, Haus-Modus
 import { h, icon, live, befehl, api, melde, dialog, gedrosselt, zahl, einheit, de, leer, zeit, grad, hsbZuCss, hsbZuHex, hexZuHsb, kelvinCss, zuMin, zuHHMM } from './kern.js';
-import { M, S, st, item, lichtAn, helligkeit, lichter, planRaum } from './modell.js';
+import { M, S, st, item, lichtAn, helligkeit, lichter, planRaum, punktName, punktArt, teilName } from './modell.js';
 
 // ------------------------------------------------------------------ Lichtstimmungen (bewusst gedämpft – billige RGB-LEDs mischen grelle Farben schlecht)
 export const STIMMUNGEN = [
@@ -42,7 +42,9 @@ export function wertText(i) {
   const s = st(i.name);
   if (leer(s)) return '–';
   if (i.options) { const o = i.options.find((x) => x.value === s); if (o) return o.label; }
+  if (i.tags.includes('LowBattery')) return s === 'ON' ? '⚠ ja' : 'nein';
   if (i.type === 'Switch') return s === 'ON' ? 'an' : 'aus';
+  if (i.type === 'String' && /modus|mode/i.test(i.label + i.name)) { const MO = { AUTOMATIC: 'Automatik', MANUAL: 'Manuell', BOOST: 'Boost', VACATION: 'Urlaub' }; if (MO[s]) return MO[s]; }
   if (i.type === 'Contact') return /fenster|tür/i.test(i.label) ? (s === 'OPEN' ? 'offen' : 'geschlossen') : (s === 'OPEN' ? 'offen' : 'zu');
   if (i.type === 'DateTime') return zeit(s);
   if (i.type === 'Color') { const b = String(s).split(','); return b[2] === '0' ? 'aus' : 'Farbe ' + b.join(' / '); }
@@ -208,7 +210,7 @@ export function steckdoseInhalt(g, groesse = 'm', mitRaum = false) {
   const unter = [an ? 'an' : 'aus', p.leistung ? wertText(p.leistung) : null, mitRaum && g.raum ? M.raumName(g.raum) : null].filter(Boolean).join(' · ');
   const teile = [kopf(g.label, unter, p.schalter ? kipp(an, (x) => befehl(p.schalter.name, x ? 'ON' : 'OFF'), g.label) : null, 'stecker')];
   if (groesse !== 's' && p.schalterAlle.length > 1) {
-    teile.push(h('div', { class: 'liste-werte' }, p.schalterAlle.slice(1).map((s) => h('div', { class: 'wertzeile' }, h('span', null, s.label), kipp(st(s.name) === 'ON', (x) => befehl(s.name, x ? 'ON' : 'OFF'), s.label)))));
+    teile.push(h('div', { class: 'liste-werte' }, p.schalterAlle.slice(1).map((s) => h('div', { class: 'wertzeile' }, h('span', null, punktName(s)), kipp(st(s.name) === 'ON', (x) => befehl(s.name, x ? 'ON' : 'OFF'), punktName(s))))));
   }
   if ((groesse === 'l' || groesse === 'voll') && p.energie) teile.push(h('div', { class: 'leise klein' }, 'Verbrauch gesamt ' + wertText(p.energie)));
   return h('div', { class: 'dose' + (an ? ' aktiv' : '') }, teile);
@@ -237,12 +239,29 @@ export function geraetInhalt(g, groesse = 'm', mitRaum = false) {
 }
 
 /** Alle Werte eines Geräts (Schalter bedienbar, Rest als Text) */
+const ARTEN = [['bedienung', 'Bedienung'], ['messung', 'Messwerte'], ['zustand', 'Batterie & Verbindung'], ['technik', 'Technik']];
+/** Alle Werte eines Geräts – verständlich benannt und sortiert; bei mehrteiligen Geräten (Heizung) je Teil */
 export function alleWerte(g) {
-  return h('div', { class: 'liste-werte' }, g.alle.map((n) => {
-    const i = item(n); if (!i) return null;
-    const bedienbar = !i.readOnly && i.type === 'Switch';
-    return h('div', { class: 'wertzeile' }, h('span', { class: 'leise' }, i.label || i.name), bedienbar ? kipp(st(n) === 'ON', (x) => befehl(n, x ? 'ON' : 'OFF'), i.label) : h('span', null, wertText(i)));
-  }));
+  const zeile = (i) => {
+    const bedienbar = !i.readOnly && i.type === 'Switch' && !i.tags.includes('LowBattery') && !i.tags.includes('Alarm');
+    return h('div', { class: 'wertzeile' }, h('span', { class: 'leise' }, punktName(i)), bedienbar ? kipp(st(i.name) === 'ON', (x) => befehl(i.name, x ? 'ON' : 'OFF'), punktName(i)) : h('span', null, wertText(i)));
+  };
+  const werte = g.alle.map(item).filter(Boolean);
+  // Herkunft (Untergerät) aus der Gruppenzugehörigkeit
+  const teil = (i) => (g.teilVon && g.teilVon[i.name]) || null;
+  const teile = [...new Set(werte.map(teil))];
+  const block = (liste) => ARTEN.map(([art, titel]) => {
+    const l = liste.filter((i) => punktArt(i) === art);
+    if (!l.length) return null;
+    const inhalt = l.map(zeile);
+    if (art === 'technik') return h('details', { class: 'werte-gruppe' }, h('summary', { class: 'leise klein' }, titel + ' (' + l.length + ')'), inhalt);
+    return h('div', { class: 'werte-gruppe' }, h('div', { class: 'werte-titel leise klein' }, titel), inhalt);
+  });
+  if (teile.length > 1) {
+    return h('div', { class: 'liste-werte' }, teile.sort((a, b) => teilName(a).localeCompare(teilName(b), 'de')).map((t) => h('div', { class: 'werte-teil' },
+      h('div', { class: 'werte-teil-name' }, teilName(t) || 'Gerät'), block(werte.filter((i) => teil(i) === t)))));
+  }
+  return h('div', { class: 'liste-werte' }, block(werte));
 }
 
 /** Alle Lichter: Schalter mit Mittelstellung – links alle aus, rechts alle an, Mitte = teils */

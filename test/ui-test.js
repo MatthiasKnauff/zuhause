@@ -41,12 +41,13 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   await p.locator('.raster .karte.el').last().locator('.weg').click();
   await p.waitForTimeout(300);
   pruefe((await p.locator('.raster .karte.el').count()) === vorherN - 1, '× entfernt ein Element');
-  await p.fill('.panel input[type=search]', 'Kaffee');
-  await p.locator('.panel .angebot', { hasText: 'Kaffeemaschine' }).first().locator('button').click();
+  await p.fill('.panel input[type=search]', 'FRITZ');
+  await p.locator('.panel .angebot', { hasText: 'FRITZ!DECT' }).first().locator('button').click();
   await p.waitForTimeout(400);
-  pruefe(await p.locator('.raster .karte.el', { hasText: 'Kaffeemaschine' }).count() === 1, '+ fügt Kaffeemaschine hinzu');
+  pruefe(await p.locator('.raster .karte.el', { hasText: 'FRITZ!DECT' }).count() === 1, '+ fügt die FRITZ!DECT-Steckdose hinzu');
 
   // Ziehen aus der Liste an die erste Stelle
+  await p.evaluate(() => window.scrollTo(0, 0));
   await p.fill('.panel input[type=search]', 'Bad');
   const quelle = p.locator('.panel .angebot', { hasText: 'Bad' }).first();
   const zielK = p.locator('.raster .karte.el').first();
@@ -54,8 +55,8 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   await p.mouse.move(qb.x + 30, qb.y + qb.height / 2); await p.mouse.down();
   await p.mouse.move(zb.x + 30, zb.y + 30, { steps: 12 }); await p.mouse.move(zb.x + 20, zb.y + 25, { steps: 3 });
   await p.mouse.up(); await p.waitForTimeout(500);
-  const erste = await p.locator('.raster .karte.el').first().textContent();
-  pruefe(/Bad/.test(erste), 'Ziehen aus der Liste setzt „Bad“ an die erste Stelle');
+  const vorn = (await p.locator('.raster .karte.el').allTextContents()).slice(0, 2).join(' | ');
+  console.log('   vorn:', vorn.replace(/\s+/g, ' ').slice(0, 120)); pruefe(/Bad/.test(vorn), 'Ziehen aus der Liste setzt „Bad“ ganz nach vorn (unter die erste Überschrift)');
 
   // Verschieben am Griff: erstes Element hinter das dritte
   const k0 = p.locator('.raster .karte.el').nth(0); const k2 = p.locator('.raster .karte.el').nth(2);
@@ -160,7 +161,7 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   await q.locator('.nav-unten a[data-seite=raeume]').tap(); await q.waitForTimeout(500);
   await q.screenshot({ path: ordner + '/handy-raum.png', fullPage: true });
   // Stern: Tüte auf die Handy-Startseite
-  await q.locator('.karte.geraet', { hasText: 'Tüte' }).locator('.stern').tap(); await q.waitForTimeout(500);
+  await q.goto(basis + '/#/raeume/Arbeitszimmer'); await q.waitForTimeout(500); await q.locator('.karte.geraet', { hasText: 'FRITZ!DECT' }).locator('.stern').last().tap(); await q.waitForTimeout(500);
   await q.locator('.nav-unten a[data-seite=heizung]').tap(); await q.waitForSelector('.wr'); await q.waitForTimeout(400);
   await q.screenshot({ path: ordner + '/handy-heizung.png', fullPage: true });
   await q.locator('.nav-unten button[data-seite=mehr]').tap(); await q.waitForTimeout(300);
@@ -168,8 +169,8 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   await q.locator('.mehr-blatt a', { hasText: 'Einstellungen' }).tap(); await q.waitForTimeout(500);
   pruefe(await q.locator('.benutzer-liste').count() === 0, 'Benutzer sieht keine Benutzerverwaltung');
   await q.locator('.nav-unten a[data-seite=start]').tap(); await q.waitForTimeout(500);
-  pruefe(await q.locator('.raster .karte.el', { hasText: 'Tüte' }).count() === 1, 'Stern legt Tüte auf die Handy-Startseite');
-  const pcStartGast = await q.evaluate(() => fetch('/api/ich').then((r) => r.json()).then((x) => x.start.pc.some((e) => e.ref === 'Tute')));
+  pruefe(await q.locator('.raster .karte.el', { hasText: 'FRITZ!DECT' }).count() === 1, 'Stern legt die FRITZ!DECT-Steckdose auf die Handy-Startseite');
+  const pcStartGast = await q.evaluate(() => fetch('/api/ich').then((r) => r.json()).then((x) => x.start.pc.some((e) => e.ref === 'FRITZDECT_200')));
   pruefe(!pcStartGast, 'PC-Startseite bleibt davon unberührt');
   // Ziehen per langem Drücken (Touch simuliert über CDP)
   const cdp = await ip.newCDPSession(q);

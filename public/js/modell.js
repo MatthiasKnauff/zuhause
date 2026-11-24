@@ -107,6 +107,9 @@ const GERAETE_NAMEN = [
   [/^Außensensor$/i, 'Außenfühler'],
   [/^Klimasensor (.+)$/i, 'Raumthermostat $1'],
 ];
+/** Geräte, deren Art sich aus openHAB nicht ablesen lässt (London hängt an einer Steckdose, ist aber eine Lampe) */
+const KLASSE_VORGABE = [[/^London/i, 'licht']];
+export const KLASSEN_WAHL = { licht: 'Licht', steckdose: 'Steckdose / Schalter', sensor: 'Sensor', raumthermostat: 'Raumthermostat (nicht MAX!)', zaehler: 'Zähler', sonst: 'Sonstiges' };
 const INTERN = /^Heizplan_|^alle_Lichter$|^Heizungsmodus_alle$/;
 
 export const ohneUmlaut = (s) => String(s).toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]/g, '');
@@ -143,10 +146,12 @@ export function aufbauen(liste) {
   const eigene = (S.namen && S.namen.geraete) || {};
   for (const g of M.geraete.values()) {
     g.openhabLabel = g.label; g.openhabRaum = g.raum;
+    g.openhabKlasse = g.klasse;
+    for (const [re, k] of KLASSE_VORGABE) if (re.test(g.name) && g.klasse !== 'heizung') g.klasse = k;
     for (const [re, neu] of GERAETE_NAMEN) if (re.test(g.label) && (!/^Raumthermostat/.test(neu) || g.klasse === 'raumthermostat')) { g.label = g.label.replace(re, neu); break; }
     if (!g.raum) g.raum = /au(ss|ß)en|outdoor|wetter|garten|balkon/i.test(g.name + ' ' + g.openhabLabel) ? 'zh:draussen' : 'zh:technik';
     const e = eigene[g.name];
-    if (e) { if (e.label) g.label = e.label; if (e.raum && (e.raum.startsWith('zh:') || orte.some((o) => o.name === e.raum))) g.raum = e.raum; g.versteckt = !!e.versteckt; }
+    if (e) { if (e.klasse && KLASSEN_WAHL[e.klasse] && g.klasse !== 'heizung') g.klasse = e.klasse; if (e.label) g.label = e.label; if (e.raum && (e.raum.startsWith('zh:') || orte.some((o) => o.name === e.raum))) g.raum = e.raum; g.versteckt = !!e.versteckt; }
   }
   const reihenfolge = ['wohnzimmer', 'kueche', 'arbeitszimmer', 'buero', 'schlafzimmer', 'kinderzimmer', 'bad', 'diele', 'flur', 'balkon', 'garten'];
   const rang = (o) => { const x = reihenfolge.indexOf(ohneUmlaut(o.label || o.name)); return x < 0 ? 99 : x; };
@@ -197,6 +202,7 @@ function geraet(g, raum, einzeln) {
     soll: finde((i) => hat(i, 'Setpoint'), wand),
     modus: finde((i) => i.type === 'String' && /modus$|mode$/i.test(i.name) && /^(WT|HT)|thermo/i.test(i.quelle || i.name), wand),
     ventil: finde((i) => /ventil|valve/i.test(i.label)),
+    ventile: alle.filter((i) => /ventil|valve/i.test(i.label)).sort((a, b) => String(a.quelle || a.name).localeCompare(String(b.quelle || b.name))),
     fenster: finde((i) => i.type === 'Contact' && /fenster|tür|window|door/i.test(i.label)),
     batterie: alle.filter((i) => hat(i, 'LowBattery')),
   };

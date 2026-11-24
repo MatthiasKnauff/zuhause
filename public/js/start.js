@@ -9,6 +9,7 @@ const BESONDERE = [
   { art: 'alleLichter', name: 'Alle Lichter', text: 'Schalter: links aus, rechts an' },
   { art: 'haus', name: 'Ganzes Haus', text: 'Eco · Automatik · Komfort' },
   { art: 'heuteAnders', name: 'Heute anders', text: 'Heizung heute nach anderer Vorlage' },
+  { art: 'titel', name: 'Überschrift', text: 'Abschnitt über die ganze Breite – Doppelklick benennt um' },
 ];
 const neueId = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const liste = () => S.ich.start[S.ansicht];
@@ -52,6 +53,7 @@ function inhalt(e) {
     case 'alleLichter': return live(() => alleLichterInhalt());
     case 'haus': return live(() => hausInhalt());
     case 'heuteAnders': return live(() => heuteInhalt(() => neuZeichnen()));
+    case 'titel': return h('h2', { class: 'start-titel', title: 'Doppelklick zum Umbenennen' }, e.text || 'Abschnitt');
     default: return fehlt(e);
   }
 }
@@ -71,6 +73,10 @@ export function startSeite(ziel) {
       return h('p', { class: 'leise' }, [new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }), Number.isFinite(t) ? 'draußen ' + grad(t) : null, an === 1 ? '1 Lampe an' : an + ' Lampen an'].filter(Boolean).join(' · '));
     })),
     h('div', { class: 'kopf-rechts' },
+      h('button', { class: 'knopf leicht klein', title: 'Startseite auf die Vorlage (Klima, Heizung, Licht, Geräte, Energie) zurücksetzen', onclick: async () => {
+        if (!confirm('Startseite (' + (pc ? 'PC' : 'Handy') + ') auf die Vorlage zurücksetzen? Deine Anordnung geht dabei verloren.')) return;
+        try { S.ich.start[S.ansicht] = await api('ich/start/' + S.ansicht, 'DELETE'); neuZeichnen(); melde('Vorlage geladen'); } catch (x) { melde(x.message, true); }
+      } }, 'Vorlage laden'),
       h('span', { class: 'leise klein nur-pc' }, 'Am Griff verschieben · Ecke zieht die Größe · × entfernt'),
       h('span', { class: 'leise klein nur-handy' }, 'Lange drücken zum Verschieben'),
       h('button', { class: 'knopf leicht', onclick: () => (pc ? panelUmschalten() : hinzufuegenDialog()) }, icon('plus', 16), pc ? 'Elemente hinzufügen' : 'Hinzufügen')));
@@ -90,7 +96,16 @@ function karte(e) {
   const griff = h('span', { class: 'griff nur-pc', title: 'Ziehen zum Verschieben', 'aria-hidden': 'true' }, icon('griff', 14));
   const weg = h('button', { class: 'weg', 'aria-label': 'Von der Startseite entfernen', title: 'Von der Startseite entfernen', onclick: (ev) => { ev.stopPropagation(); S.ich.start[S.ansicht] = liste().filter((x) => x.id !== e.id); k.remove(); speichern(); } }, '×');
   const ecke = h('span', { class: 'ecke', title: 'Ziehen: klein · mittel · groß', 'aria-hidden': 'true' });
-  k.append(griff, weg, inhalt(e), ecke);
+  k.append(griff, weg, inhalt(e));
+  if (e.art !== 'titel') k.append(ecke);
+  if (e.art === 'titel') {
+    k.classList.add('titel-el');
+    k.addEventListener('dblclick', () => {
+      const f = h('input', { type: 'text', value: e.text || '', maxlength: 40, 'aria-label': 'Überschrift' });
+      dialog('Überschrift', f, { knoepfe: [{ text: 'Speichern', klasse: 'knopf', aktion: async () => { e.text = f.value.trim() || 'Abschnitt'; neuZeichnen(); await speichern(); } }] });
+      setTimeout(() => f.select(), 50);
+    });
+  }
   griff.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ziehenStart(ev, k, e); });
   ecke.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); groesseStart(ev, k, e); });
   // Handy: lange drücken
@@ -200,7 +215,7 @@ function angebot() {
   const q = suche.trim().toLowerCase();
   const treffer = (t) => !q || t.toLowerCase().includes(q);
   const gruppen = [];
-  gruppen.push(['Besonderes', BESONDERE.filter((b) => treffer(b.name)).map((b) => ({ art: b.art, name: b.name, text: b.text, groesse: 'm' }))]);
+  gruppen.push(['Besonderes', BESONDERE.filter((b) => treffer(b.name)).map((b) => ({ art: b.art, name: b.name, text: b.text, groesse: b.art === 'titel' ? 's' : 'm', ...(b.art === 'titel' ? { titel: 'Neuer Abschnitt' } : {}) }))]);
   gruppen.push(['Räume', M.raeume.filter((r) => treffer(r.label)).map((r) => ({ art: 'raum', ref: r.name, name: r.label, text: r.geraete.length + ' Geräte', groesse: 's' }))]);
   const KL = { licht: 'Licht', heizung: 'Heizung (MAX!)', raumthermostat: 'Raumthermostat', steckdose: 'Steckdose', sensor: 'Sensor', zaehler: 'Zähler', sonst: 'Gerät' };
   for (const r of M.raeume) {
@@ -215,16 +230,16 @@ function angebot() {
   return gruppen.filter(([, l]) => l.length);
 }
 function zeileFuer(v, beiPlus) {
-  const da = aufStart(v.art, v.ref);
+  const da = v.art !== 'titel' && aufStart(v.art, v.ref);
   const z = h('div', { class: 'angebot' + (da ? ' da' : '') },
     h('span', { class: 'griff' }, icon('griff', 12)),
     h('div', { class: 'k-titel' }, h('div', { class: 'k-name' }, v.name), h('div', { class: 'k-unter' }, da ? 'schon auf der Startseite' : v.text)),
     h('button', { class: 'rund klein', 'aria-label': v.name + ' hinzufügen', onclick: () => beiPlus(v) }, icon('plus', 14)));
-  z.addEventListener('pointerdown', (ev) => { if (ev.pointerType === 'touch' || ev.target.closest('button')) return; ev.preventDefault(); ziehenNeu(ev, z, { art: v.art, ...(v.ref ? { ref: v.ref } : {}), groesse: v.groesse }); });
+  z.addEventListener('pointerdown', (ev) => { if (ev.pointerType === 'touch' || ev.target.closest('button')) return; ev.preventDefault(); ziehenNeu(ev, z, { art: v.art, ...(v.ref ? { ref: v.ref } : {}), ...(v.titel ? { text: v.titel } : {}), groesse: v.groesse }); });
   return z;
 }
 async function hinzu(v) {
-  liste().push({ id: neueId(), art: v.art, ...(v.ref ? { ref: v.ref } : {}), groesse: v.groesse });
+  liste().push({ id: neueId(), art: v.art, ...(v.ref ? { ref: v.ref } : {}), ...(v.titel ? { text: v.titel } : {}), groesse: v.groesse });
   neuZeichnen(); await speichern(); melde(v.name + ' hinzugefügt');
 }
 function panelFuellen(p) {

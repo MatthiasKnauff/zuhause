@@ -1,6 +1,6 @@
 // Seiten: Räume, Licht, Energie, Geräte, Benutzer & Einstellungen
 import { h, icon, api, melde, dialog, leeren, live, zahl, de, grad } from './kern.js';
-import { M, S, st, lichtAn, raumTemp } from './modell.js';
+import { M, S, st, lichtAn, raumTemp, KLASSEN_WAHL } from './modell.js';
 import { geraetInhalt, alleWerte, alleLichterInhalt, wertText, lichtSchalten } from './widgets.js';
 import { stern } from './start.js';
 import { darstellungAnwenden } from './app.js';
@@ -27,9 +27,13 @@ function umbenennen(g) {
     h('option', { value: '' }, 'wie in openHAB' + (g.openhabRaum ? ' (' + M.raumName(g.openhabRaum) + ')' : ' (keiner)')),
     M.alleRaeume.map((r) => h('option', { value: r.name, selected: alt.raum === r.name }, r.label)));
   const weg = h('input', { type: 'checkbox', checked: !!alt.versteckt });
+  const art = g.klasse === 'heizung' ? null : h('select', { 'aria-label': 'Art' },
+    h('option', { value: '' }, 'automatisch (' + (KLASSEN_WAHL[g.openhabKlasse] || g.openhabKlasse) + ')'),
+    Object.entries(KLASSEN_WAHL).map(([k, n]) => h('option', { value: k, selected: alt.klasse === k }, n)));
   dialog('Gerät: ' + g.label, h('div', null,
     h('label', { class: 'formzeile' }, h('span', { class: 'leise' }, 'Name'), name),
     h('label', { class: 'formzeile' }, h('span', { class: 'leise' }, 'Raum'), raum),
+    art ? h('label', { class: 'formzeile' }, h('span', { class: 'leise' }, 'Art'), art) : null,
     h('label', { class: 'haken', style: { marginTop: '12px' } }, weg, 'Ausblenden (nur noch unter Geräte → Ausgeblendet)'),
     h('p', { class: 'leise klein' }, 'In openHAB heißt es „' + g.openhabLabel + '“ (' + g.name + '). Die Änderung gilt nur in dieser App und für alle Benutzer; leer lassen = Name aus openHAB.')), {
     knoepfe: [{ text: 'Speichern', klasse: 'knopf', aktion: async () => {
@@ -37,6 +41,7 @@ function umbenennen(g) {
       const e = {};
       if (name.value.trim()) e.label = name.value.trim();
       if (raum.value) e.raum = raum.value;
+      if (art && art.value) e.klasse = art.value;
       if (weg.checked) e.versteckt = true;
       if (Object.keys(e).length) geraete[g.name] = e; else delete geraete[g.name];
       S.namen = await api('namen', 'PUT', { geraete });

@@ -47,6 +47,7 @@ function namenSetzen(k) {
     if (typeof v.label === 'string' && v.label.trim()) e.label = v.label.trim().slice(0, 60);
     if (typeof v.raum === 'string' && /^[A-Za-z0-9_:]{1,120}$/.test(v.raum)) e.raum = v.raum;
     if (v.versteckt === true) e.versteckt = true;
+    if (['licht', 'steckdose', 'sensor', 'raumthermostat', 'zaehler', 'sonst'].includes(v.klasse)) e.klasse = v.klasse;
     if (Object.keys(e).length) g[n] = e;
   }
   namen = { geraete: g }; fs.writeFileSync(namenDatei, JSON.stringify(namen, null, 1)); return namen;
@@ -94,6 +95,7 @@ const routen = [
   ['GET', /^\/api\/ich$/, (m, k, b) => ({ benutzer: benutzer.oeffentlich(b), ...benutzer.einstellungen(b.id) })],
   ['PUT', /^\/api\/ich\/darstellung$/, (m, k, b) => benutzer.darstellungSetzen(b.id, k)],
   ['PUT', /^\/api\/ich\/start\/(pc|handy)$/, (m, k, b) => benutzer.startSetzen(b.id, m[1], k.elemente)],
+  ['DELETE', /^\/api\/ich\/start\/(pc|handy)$/, (m, k, b) => benutzer.startVorlage(b.id, m[1])],
   ['PUT', /^\/api\/ich\/passwort$/, (m, k, b) => benutzer.aendern(b.id, { passwort: k.passwort })],
   ['GET', /^\/api\/status$/, () => ({ openhab: { verbunden: oh.verbunden, fehler: oh.fehler, items: oh.items.size, geladen: oh.geladen }, heizung: heizung.verfuegbar() })],
   ['GET', /^\/api\/items$/, () => [...oh.items.values()]],

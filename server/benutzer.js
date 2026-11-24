@@ -6,24 +6,27 @@ const crypto = require('crypto');
 
 const SITZUNG_TAGE = 90;
 const STANDARD_DARSTELLUNG = { schema: 'hell', akzent: '#ea580c', nachtDunkel: false, schrift: 'normal' };
-const STANDARD_START = {
-  pc: [
-    { id: 's1', art: 'heizung', ref: 'Heizung_Wohnzimmer', groesse: 'm' },
-    { id: 's2', art: 'geraet', ref: 'Aussentemperatur_LUMI', groesse: 's' },
-    { id: 's3', art: 'geraet', ref: 'BitShake_Stromzahler', groesse: 's' },
-    { id: 's4', art: 'alleLichter', groesse: 'm' },
-    { id: 's5', art: 'geraet', ref: 'LED_Wohnzimmer_eWeLight', groesse: 's' },
-    { id: 's6', art: 'haus', groesse: 's' },
-  ],
-  handy: [
-    { id: 'h1', art: 'alleLichter', groesse: 'm' },
-    { id: 'h2', art: 'heizung', ref: 'Heizung_Wohnzimmer', groesse: 'l' },
-    { id: 'h3', art: 'geraet', ref: 'Stehlampe_shelly18caab55fc066192168179203', groesse: 's' },
-    { id: 'h4', art: 'geraet', ref: 'BitShake_Stromzahler', groesse: 's' },
-    { id: 'h5', art: 'haus', groesse: 'm' },
-  ],
-};
-const ARTEN = ['geraet', 'heizung', 'punkt', 'raum', 'alleLichter', 'haus', 'heuteAnders'];
+// Vorlage für neue Startseiten – aufgebaut wie die Übersichtsseite in openHAB (Klima, Heizung, Licht, Geräte, Energie)
+const t = (id, text) => ({ id, art: 'titel', text, groesse: 's' });
+const g = (id, ref, groesse = 's', art = 'geraet') => ({ id, art, ref, groesse });
+const VORLAGE = (x) => [
+  t(x + 't1', 'Klima'),
+  g(x + 'k1', 'Aussentemperatur_LUMI'), g(x + 'k2', 'Thermostat_Schlafzimmer'), g(x + 'k3', 'Termostat_Office__TZE284_wtikaxzs'),
+  t(x + 't2', 'Heizung'),
+  { id: x + 'h0', art: 'haus', groesse: 'm' }, { id: x + 'h9', art: 'heuteAnders', groesse: 'm' },
+  g(x + 'h1', 'Heizung_Wohnzimmer', 's', 'heizung'), g(x + 'h2', 'Heizung_Kueche', 's', 'heizung'), g(x + 'h3', 'Heizung_Arbeitszimmer', 's', 'heizung'),
+  g(x + 'h4', 'Heizung_Schlafzimmer', 's', 'heizung'), g(x + 'h5', 'Heizung_Bad', 's', 'heizung'),
+  t(x + 't3', 'Licht'),
+  { id: x + 'l0', art: 'alleLichter', groesse: 'm' },
+  ...['Spiegelei_Paulmann_Licht_GmbH', 'Schreibtischlampe_shellyplugs5adcfc192168179218', 'Stehlampe_shelly18caab55fc066192168179203', 'LED_Wohnzimmer_eWeLight',
+    'LED_Schlafzimmer_192168179219', 'Nachttischlampe', 'London_shellyplugs5b0ccb__192168179212', 'Tute', 'Igel_Paulmann_Licht_GmbH', 'Balkon_Kugel__TZ3000_q50zhdsc'].map((r, i) => g(x + 'l' + (i + 1), r)),
+  t(x + 't4', 'Geräte'),
+  ...['Kaffeemaschine__TZ3000_2putqrmw', 'PC_shellyunie8db84d6593f__192168179205', 'Drucker', '_3D_Drucker_Shelly_PlugS', 'Kameras'].map((r, i) => g(x + 'g' + (i + 1), r)),
+  t(x + 't5', 'Energie'),
+  g(x + 'e1', 'BitShake_Stromzahler', 'm'),
+];
+const STANDARD_START = { pc: VORLAGE('p'), handy: VORLAGE('h') };
+const ARTEN = ['geraet', 'heizung', 'punkt', 'raum', 'alleLichter', 'haus', 'heuteAnders', 'titel'];
 
 const hash = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString('hex');
 
@@ -130,13 +133,21 @@ class Benutzer {
     this._schreib(path.join('einstellungen', id + '.json'), e);
     return e.darstellung;
   }
+  /** Startseite auf die Vorlage zurücksetzen */
+  startVorlage(id, geraet) {
+    if (!['pc', 'handy'].includes(geraet)) throw new Error('pc oder handy');
+    const e = this.einstellungen(id); e.start[geraet] = JSON.parse(JSON.stringify(STANDARD_START[geraet]));
+    this._schreib(path.join('einstellungen', id + '.json'), e);
+    return e.start[geraet];
+  }
   startSetzen(id, geraet, elemente) {
     if (!['pc', 'handy'].includes(geraet)) throw new Error('pc oder handy');
     if (!Array.isArray(elemente) || elemente.length > 60) throw new Error('Höchstens 60 Elemente');
     const sauber = elemente.map((x, i) => {
       if (!ARTEN.includes(x.art)) throw new Error('Unbekannte Elementart');
       if (!['s', 'm', 'l'].includes(x.groesse)) throw new Error('Größe s/m/l');
-      return { id: String(x.id || 'e' + Date.now() + i).slice(0, 40), art: x.art, ...(x.ref ? { ref: String(x.ref).slice(0, 200) } : {}), groesse: x.groesse };
+      return { id: String(x.id || 'e' + Date.now() + i).slice(0, 40), art: x.art, ...(x.ref ? { ref: String(x.ref).slice(0, 200) } : {}),
+        ...(x.art === 'titel' ? { text: String(x.text || 'Abschnitt').slice(0, 40) } : {}), groesse: x.groesse };
     });
     const e = this.einstellungen(id); e.start[geraet] = sauber;
     this._schreib(path.join('einstellungen', id + '.json'), e);

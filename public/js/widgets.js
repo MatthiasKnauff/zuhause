@@ -168,9 +168,9 @@ export function heizInhalt(g, groesse = 'm') {
   const modus = p.modus ? st(p.modus.name) : null;
   const MODI = { AUTOMATIC: 'Automatik', MANUAL: 'Manuell', BOOST: 'Boost', VACATION: 'Urlaub' };
   const naechst = naechsterPunkt(g);
-  const ventil = p.ventil ? zahl(st(p.ventil.name)) : NaN;
+  const ventile = (p.ventile || []).map((v) => zahl(st(v.name))).filter(Number.isFinite);   // alle Heizkörper des Raums, z. B. Küche: 40 / 35 %
   const fensterAuf = p.fenster && st(p.fenster.name) === 'OPEN';
-  const info = [MODI[modus] || null, naechst && modus === 'AUTOMATIC' ? naechst : null, Number.isFinite(ventil) ? 'Ventil ' + de(ventil, 0) + ' %' : null, fensterAuf ? 'Fenster offen' : null].filter(Boolean).join(' · ');
+  const info = [MODI[modus] || null, naechst && modus === 'AUTOMATIC' ? naechst : null, ventile.length ? (ventile.length > 1 ? 'Ventile ' : 'Ventil ') + ventile.map((v) => de(v, 0)).join(' / ') + ' %' : null, fensterAuf ? 'Fenster offen' : null].filter(Boolean).join(' · ');
   const stelle = (d) => { if (!p.soll || !Number.isFinite(soll)) return; const v = Math.min(30.5, Math.max(4.5, soll + d)); befehl(p.soll.name, v + ' °C'); };
   const sollBox = h('div', { class: 'soll' },
     h('button', { class: 'rund kalt', 'aria-label': 'kälter', onclick: (e) => { e.stopPropagation(); stelle(-0.5); } }, '−'),

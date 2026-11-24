@@ -14,7 +14,7 @@
 | | Server |
 |---|---|
 | Test | docker1 · Port 8031 · http://192.168.131.14:8031 · Volume `zuhause-test` |
-| Produktiv | docker2 · Port 8030 · http://192.168.131.14:8030 · Volume `zuhause-prod` |
+| Produktiv | docker2 · Port 8030 · http://192.168.131.18:8030 · https://zuhause.knauff.info · Volume `zuhause-prod` |
 
 ## Aufbau
 

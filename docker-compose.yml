@@ -2,7 +2,7 @@
 # Image und Umgebung trägt die Pipeline ein; HOST_PORT und die übrigen Variablen kommen aus dem Portainer-Stack.
 services:
   app:
-    image: ghcr.io/matthiasknauff/zuhause:test-dd9d185
+    image: ghcr.io/matthiasknauff/zuhause:test-5dc5b45
     container_name: zuhause-test
     restart: unless-stopped
     ports:

@@ -1,0 +1,367 @@
+/* Zuhause – Gestaltung. Farbschemata über data-schema, Akzent über --akzent, Schriftgröße über data-schrift */
+:root {
+  --akzent: #ea580c;
+  --grund: #f4f6f9; --karte: #ffffff; --text: #1e293b; --leise: #64748b; --linie: #e5e9f0; --feld: #f1f5f9; --feld2: #e2e8f0;
+  --schatten: 0 2px 10px rgba(15, 23, 42, .06); --schatten2: 0 12px 32px rgba(15, 23, 42, .18);
+  --akzent-hell: color-mix(in srgb, var(--akzent) 12%, var(--karte));
+  --akzent-text: color-mix(in srgb, var(--akzent) 82%, var(--text));
+  --kalt: #2563eb; --gruen: #16a34a; --rot: #dc2626;
+  --warm0: #fde3c4; --warm1: #fdba74; --warm2: #f97316;
+  --radius: 16px;
+  font-size: 15px;
+  color-scheme: light;
+}
+:root[data-schrift="klein"] { font-size: 13.5px; }
+:root[data-schrift="gross"] { font-size: 17.5px; }
+:root[data-schema="dunkel"] {
+  --grund: #0f172a; --karte: #1e293b; --text: #e2e8f0; --leise: #94a3b8; --linie: #334155; --feld: #273449; --feld2: #3b4a63;
+  --schatten: 0 2px 10px rgba(0, 0, 0, .3); --schatten2: 0 12px 32px rgba(0, 0, 0, .5);
+  --akzent-hell: color-mix(in srgb, var(--akzent) 22%, var(--karte));
+  --akzent-text: color-mix(in srgb, var(--akzent) 70%, #fff);
+  --warm0: #7c3d12; --warm1: #c2580f; --warm2: #f97316;
+  color-scheme: dark;
+}
+:root[data-schema="warm"] { --grund: #faf5ee; --karte: #fffdf9; --text: #3b2f25; --leise: #7c6a58; --linie: #eadfd2; --feld: #f4ece2; --feld2: #e9ddcf; }
+:root[data-schema="kuehl"] { --grund: #edf2f8; --karte: #ffffff; --text: #1b2738; --leise: #5b6b80; --linie: #d9e2ec; --feld: #e8eef5; --feld2: #d5dfea; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--grund); color: var(--text); }
+body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
+body.kein-scroll { overflow: hidden; touch-action: none; }
+a { color: var(--akzent-text); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1 { margin: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -.01em; }
+h2 { font-size: 1.15rem; margin: 0; }
+h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--leise); margin: 14px 0 6px; }
+.leise { color: var(--leise); }
+.klein { font-size: .85rem; }
+.gross { font-size: 1.5rem; font-weight: 700; }
+.akzent { color: var(--akzent-text); }
+.laden { padding: 40vh 0; text-align: center; color: var(--leise); }
+input[type=text], input[type=password], input[type=search], input[type=number], input[type=time], input[type=datetime-local], select {
+  background: var(--karte); border: 1px solid var(--feld2); border-radius: 10px; padding: 8px 10px; min-height: 38px; max-width: 100%;
+}
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+input[type=number] { width: 5.5em; }
+input[type=search] { width: 100%; }
+
+/* ---------------------------------------------------------------- Knöpfe */
+.knopf { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--akzent); color: #fff; border-radius: 10px; padding: 8px 14px; min-height: 38px; font-weight: 600; text-decoration: none; }
+.knopf.leicht { background: var(--feld); color: var(--text); font-weight: 500; }
+.knopf.leicht:hover { background: var(--feld2); }
+.knopf.klein { padding: 4px 10px; min-height: 30px; font-size: .85rem; }
+.knopf.voll { width: 100%; justify-content: center; min-height: 44px; }
+.knopf.gefahr { color: var(--rot); }
+.rund { border: 1px solid var(--feld2); background: var(--karte); width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex: none; }
+.rund.klein { width: 28px; height: 28px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips.voll > * { flex: 1 1 0; }
+.chips.senkrecht { flex-direction: column; }
+.chip { border: 1px solid var(--linie); background: var(--feld); border-radius: 999px; padding: 6px 12px; min-height: 34px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text); font-size: .92rem; }
+.chip.gross { border-radius: 12px; flex-direction: column; align-items: flex-start; gap: 0; padding: 8px 12px; text-align: left; }
+.chip.gross small { color: var(--leise); }
+.chip.aktiv { background: var(--akzent-hell); border-color: var(--akzent); color: var(--akzent-text); font-weight: 600; }
+.chip .punkt { width: 14px; height: 14px; border-radius: 50%; background: var(--muster); border: 1px solid rgba(0,0,0,.1); }
+.marke { font-size: .75rem; background: var(--feld); border-radius: 999px; padding: 2px 8px; margin-left: 6px; color: var(--leise); white-space: nowrap; }
+.marke.akzent { background: var(--akzent-hell); color: var(--akzent-text); }
+.haken { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.haken input { width: 18px; height: 18px; accent-color: var(--akzent); }
+.zeile-knopfe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.farbwahl { position: relative; overflow: hidden; }
+.farbwahl input[type=color] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Kippschalter */
+.kipp { width: 50px; height: 30px; border-radius: 999px; border: 0; background: var(--feld2); position: relative; flex: none; padding: 0; transition: background .2s; }
+.kipp span { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.kipp.an { background: var(--akzent); }
+.kipp.an span { transform: translateX(20px); }
+
+/* Regler */
+.regler { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; margin: 0; }
+.regler::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: var(--spur, var(--feld2)); }
+.regler::-moz-range-track { height: 8px; border-radius: 999px; background: var(--spur, var(--feld2)); }
+.regler::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 2px solid var(--akzent); margin-top: -8px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.regler::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2px solid var(--akzent); }
+.regler.hell { --spur: linear-gradient(90deg, #475569, #fde68a); }
+.regler.ct { --spur: linear-gradient(90deg, #f6b25a, #fff3dc, #dbeafe); }
+.regler.farbton { --spur: linear-gradient(90deg, red, #ff0, lime, cyan, blue, #f0f, red); }
+.regler.saett { --spur: linear-gradient(90deg, #eee, #e06a3a); }
+.zeile { display: grid; grid-template-columns: 7.5em 1fr; align-items: center; gap: 10px; margin-top: 8px; }
+
+/* ---------------------------------------------------------------- Kopfleiste (PC) und Leiste unten (Handy) */
+.kopfleiste { position: sticky; top: 0; z-index: 20; background: var(--karte); border-bottom: 1px solid var(--linie); display: flex; align-items: center; gap: 24px; padding: 0 32px; min-height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem; color: var(--text); text-decoration: none; }
+.logo-sym { width: 32px; height: 32px; border-radius: 9px; background: var(--akzent-hell); color: var(--akzent); display: inline-flex; align-items: center; justify-content: center; }
+.logo.gross { font-size: 1.6rem; justify-content: center; margin-bottom: 8px; }
+.logo.gross .logo-sym { width: 44px; height: 44px; border-radius: 12px; }
+.nav-oben { display: flex; gap: 2px; flex: 1; }
+.nav-oben a { text-decoration: none; padding: 20px 14px 17px; color: var(--leise); border-bottom: 3px solid transparent; font-weight: 500; }
+.nav-oben a:hover { color: var(--text); }
+.nav-oben a.aktiv { color: var(--akzent-text); border-bottom-color: var(--akzent); font-weight: 600; }
+.kopf-status { display: flex; align-items: center; gap: 12px; font-size: .85rem; color: var(--leise); }
+.verbindung { display: inline-flex; align-items: center; gap: 6px; }
+.status-punkt { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+.status-punkt.gruen { background: var(--gruen); }
+.status-punkt.rot { background: var(--rot); }
+.kuerzel { width: 34px; height: 34px; border-radius: 50%; background: var(--akzent-hell); color: var(--akzent-text); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; flex: none; }
+.nav-unten { display: none; }
+.haupt { max-width: 1440px; margin: 0 auto; padding: 24px 32px 48px; }
+.nur-handy { display: none; }
+
+@media (max-width: 759px) {
+  .kopfleiste { padding: 0 16px; min-height: 52px; padding-top: env(safe-area-inset-top); }
+  .nav-oben { display: none; }
+  .kopf-status { margin-left: auto; }
+  .nav-unten { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--karte); border-top: 1px solid var(--linie); padding-bottom: env(safe-area-inset-bottom); }
+  .nav-unten > * { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: .72rem; color: var(--leise); text-decoration: none; border: 0; background: none; }
+  .nav-unten > .aktiv { color: var(--akzent-text); font-weight: 600; }
+  .haupt { padding: 16px 14px calc(90px + env(safe-area-inset-bottom)); }
+  .nur-pc { display: none !important; }
+  .nur-handy { display: inline; }
+  h1 { font-size: 1.45rem; }
+}
+.mehr-hintergrund { position: fixed; inset: 0; z-index: 40; background: rgba(15, 23, 42, .35); display: flex; align-items: flex-end; }
+.mehr-blatt { background: var(--karte); width: 100%; border-radius: 18px 18px 0 0; padding: 10px 10px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+.mehr-blatt > * { display: flex; align-items: center; gap: 14px; padding: 14px 12px; border: 0; background: none; text-decoration: none; color: var(--text); font-size: 1.05rem; border-radius: 10px; text-align: left; }
+.mehr-blatt > *:active { background: var(--feld); }
+body.getrennt .haupt { opacity: .75; }
+
+/* ---------------------------------------------------------------- Anmelden */
+.anmelde-seite { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.anmelden { width: min(360px, 100%); display: flex; flex-direction: column; gap: 12px; padding: 28px 24px; }
+.anmelden input { min-height: 46px; font-size: 1rem; }
+.fehlertext { color: var(--rot); margin: 0; min-height: 1.2em; font-size: .9rem; }
+
+/* ---------------------------------------------------------------- Karten */
+.karte { background: var(--karte); border-radius: var(--radius); box-shadow: var(--schatten); padding: 16px 18px; position: relative; min-width: 0; }
+.karte + .karte, .karte + h2, .seite > .karte { margin-top: 16px; }
+.k-kopf { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.k-sym { width: 30px; height: 30px; border-radius: 9px; background: var(--feld); color: var(--leise); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.k-titel { flex: 1; min-width: 0; }
+.k-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.k-unter { color: var(--leise); font-size: .85rem; }
+.leuchtet .k-sym { background: #fef3c7; color: #d97706; }
+:root[data-schema="dunkel"] .leuchtet .k-sym { background: #78350f; color: #fde68a; }
+.karte-ecke { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.karte-ecke.statisch { position: static; }
+.karte.geraet .k-kopf { padding-right: 34px; }
+.stern { border: 0; background: none; color: var(--leise); width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+.stern:hover { background: var(--feld); }
+.stern.an { color: #f59e0b; }
+.karten-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; align-items: start; }
+.karten-raster .karte + .karte { margin-top: 0; }
+.karte.breit { grid-column: span 2; }
+@media (max-width: 759px) { .karten-raster { grid-template-columns: 1fr; gap: 12px; } .karte.breit { grid-column: auto; } }
+.seitenkopf { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.seitenkopf p { margin: 4px 0 0; }
+.kopf-rechts { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.abschnitt { margin: 28px 0 12px; }
+.fehlerbox { border-left: 4px solid var(--rot); }
+.leer-hinweis { grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--leise); border: 2px dashed var(--feld2); border-radius: var(--radius); }
+.liste-werte { display: flex; flex-direction: column; margin-top: 10px; }
+.wertzeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--linie); font-size: .92rem; }
+.wertzeile > :last-child { text-align: right; }
+.alle-werte { margin-top: 6px; }
+.formzeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.formzeile > :first-child { flex: none; min-width: 6em; }
+.formblock { margin-top: 14px; }
+.zwei-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.zwei-spalten .karte { margin: 0; }
+.live.inline { display: inline; }
+
+/* Licht */
+.licht .stimmungsblock { margin-top: 14px; }
+.stimmungen { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-top: 6px; }
+.stimmung { border: 1px solid var(--linie); background: var(--karte); border-radius: 12px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .82rem; }
+.stimmung.aktiv { border-color: var(--akzent); box-shadow: 0 0 0 2px var(--akzent-hell); font-weight: 600; }
+.farbfeld { width: 34px; height: 34px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); display: inline-block; }
+.farbfeld.gross { width: 30px; height: 30px; flex: none; }
+.abgleich { border-top: 1px solid var(--linie); padding: 12px 0; }
+.abgleich-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.abgleich-kopf b { min-width: 6.5em; }
+.abgleich-regler { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 6px; }
+@media (max-width: 600px) { .abgleich-regler { grid-template-columns: 1fr; gap: 2px; } }
+.pfeil { color: var(--leise); }
+
+/* Heizung (Karte) */
+.heiz-zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.ist { font-size: 2rem; font-weight: 600; line-height: 1; }
+.ist.gross2 { font-size: 2.6rem; }
+.ist small { font-size: 1rem; color: var(--leise); font-weight: 500; }
+.soll { display: flex; align-items: center; gap: 8px; }
+.soll .rund { width: 44px; height: 44px; font-size: 1.4rem; }
+.soll .rund.kalt { color: var(--kalt); }
+.soll .rund.warm { color: var(--akzent); }
+.soll-wert { text-align: center; min-width: 64px; }
+.heiz.fenster .k-unter { color: var(--kalt); }
+.heiz.klein .soll .rund { width: 34px; height: 34px; font-size: 1.1rem; }
+.heiz.klein .soll .gross { font-size: 1.15rem; }
+.heiz.klein .ist { font-size: 1.6rem; }
+
+/* Alle Lichter: Schalter mit Mittelstellung */
+.drei { position: relative; display: grid; grid-template-columns: 1fr 1fr; background: var(--feld); border-radius: 999px; margin-top: 12px; height: 48px; user-select: none; touch-action: pan-y; }
+.drei button { border: 0; background: none; z-index: 1; font-weight: 600; color: var(--leise); border-radius: 999px; }
+.drei-knopf { position: absolute; top: 4px; width: calc(50% - 4px); height: 40px; border-radius: 999px; background: var(--karte); box-shadow: 0 1px 4px rgba(0,0,0,.18); transition: left .25s, width .25s, background .25s; }
+.drei.lage-aus .drei-knopf { left: 4px; }
+.drei.lage-aus .drei-aus { color: var(--text); }
+.drei.lage-an .drei-knopf { left: 50%; background: var(--akzent); }
+.drei.lage-an .drei-an { color: #fff; }
+.drei.lage-teils .drei-knopf { left: calc(25% + 2px); width: calc(50% - 4px); background: var(--akzent-hell); }
+.drei.lage-teils button { color: var(--text); }
+
+/* Ganzes Haus */
+.haus .chip.gross { align-items: center; text-align: center; }
+
+/* Sensoren */
+.sensor-werte { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+.sw { display: inline-flex; align-items: center; gap: 6px; color: var(--leise); }
+.sw.haupt { color: var(--text); font-size: 1.5rem; font-weight: 600; width: 100%; }
+.sensor-werte.klein .sw.haupt { font-size: 1.35rem; }
+
+/* Räume */
+.raum-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; scrollbar-width: thin; }
+.raum-chips .chip { white-space: nowrap; }
+.raumkachel .knopf { flex: none; }
+a.ganz { display: block; color: inherit; text-decoration: none; height: 100%; }
+
+/* Energie */
+.energie-gesamt .riesig { font-size: 3rem; font-weight: 700; line-height: 1.1; }
+.energie-gesamt .riesig small { font-size: 1.2rem; color: var(--leise); }
+.balken-zeile { display: grid; grid-template-columns: minmax(120px, 2fr) 3fr 80px; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--linie); }
+.b-balken { height: 10px; background: var(--feld); border-radius: 999px; overflow: hidden; }
+.b-balken i { display: block; height: 100%; background: var(--akzent); border-radius: 999px; }
+.b-wert { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Benutzer */
+.benutzer-liste { margin-top: 12px; }
+.benutzer-zeile { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--linie); }
+.schemata { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+.schema { border: 2px solid var(--linie); border-radius: 12px; background: var(--karte); padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .85rem; }
+.schema.aktiv { border-color: var(--akzent); font-weight: 600; }
+.schema-bild { width: 100%; height: 34px; border-radius: 8px; display: flex; flex-direction: column; gap: 3px; padding: 5px; }
+.schema-bild i { height: 6px; border-radius: 3px; background: currentColor; opacity: .35; }
+.schema-bild i:first-child { width: 60%; opacity: .7; }
+.s-hell .schema-bild { background: #f4f6f9; color: #1e293b; }
+.s-dunkel .schema-bild { background: #0f172a; color: #e2e8f0; }
+.s-warm .schema-bild { background: #faf5ee; color: #7c4a1e; }
+.s-kuehl .schema-bild { background: #e8eef5; color: #1e3a5f; }
+.akzente { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.akzent-wahl { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--karte); box-shadow: 0 0 0 1px var(--linie); padding: 0; }
+.akzent-wahl.aktiv { box-shadow: 0 0 0 2px var(--text); }
+
+/* ---------------------------------------------------------------- Startseite */
+.start { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
+.start.mit-panel { grid-template-columns: minmax(0, 1fr) 320px; }
+.raster { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(118px, auto); grid-auto-flow: dense; gap: 14px; }
+.raster .karte + .karte { margin-top: 0; }
+.g-s { grid-column: span 1; }
+.g-m { grid-column: span 2; }
+.g-l { grid-column: span 2; grid-row: span 2; }
+@media (max-width: 1100px) { .start.mit-panel .raster { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 759px) {
+  .raster { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; grid-auto-rows: minmax(104px, auto); }
+  .start.mit-panel { grid-template-columns: 1fr; }
+}
+.karte.el { padding: 14px 16px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.karte.el .k-kopf { padding-right: 34px; }
+.karte.el.g-s .k-kopf { padding-right: 22px; }
+.griff { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); color: var(--leise); opacity: 0; cursor: grab; padding: 10px 2px; touch-action: none; }
+.karte.el:hover .griff { opacity: .8; }
+.karte.el .weg { position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 50%; border: 0; background: var(--feld); color: var(--leise); font-size: 1rem; line-height: 1; padding: 0; opacity: .55; }
+.karte.el:hover .weg, .karte.el .weg:focus-visible { opacity: 1; }
+.karte.el .weg:hover { background: var(--rot); color: #fff; }
+.karte.el .ecke { position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; opacity: .0; background: linear-gradient(135deg, transparent 50%, var(--leise) 50%, var(--leise) 58%, transparent 58%, transparent 70%, var(--leise) 70%, var(--leise) 78%, transparent 78%); border-radius: 0 0 var(--radius) 0; }
+.karte.el:hover .ecke { opacity: .7; }
+@media (hover: none) { .karte.el .ecke { opacity: .55; width: 26px; height: 26px; } .karte.el .weg { opacity: .8; } }
+.karte.el.g-s .heiz-zeile { flex-wrap: nowrap; }
+.karte.el.zieht { opacity: .35; }
+.karte.el.platzhalter { background: var(--akzent-hell); border: 2px dashed var(--akzent); box-shadow: none; }
+.karte.el.groesse-aendern { outline: 2px dashed var(--akzent); outline-offset: 2px; }
+.geist { position: fixed; z-index: 100; pointer-events: none; box-shadow: var(--schatten2); opacity: .92; transform-origin: top left; margin: 0 !important; }
+
+.karte.el.g-s .k-unter { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel { background: var(--karte); border-radius: var(--radius); box-shadow: var(--schatten); padding: 16px; position: sticky; top: 84px; max-height: calc(100vh - 104px); display: flex; flex-direction: column; gap: 8px; }
+.panel[hidden] { display: none; }
+.panel-kopf { display: flex; align-items: center; justify-content: space-between; }
+.panel p { margin: 0; }
+.panel-liste { overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+.dialog .panel-liste { max-height: 60vh; margin-top: 8px; }
+.angebot { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; cursor: grab; }
+.angebot:hover { background: var(--feld); }
+.angebot .griff { position: static; transform: none; opacity: .6; padding: 0; }
+.angebot.da .k-unter { color: var(--gruen); }
+
+/* ---------------------------------------------------------------- Heizung (Seite) */
+.statuszeile { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 0; }
+.statuszeile .knopf { margin-left: 8px; }
+.heiz-oben { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.heiz-oben .karte, .heiz-unten .karte { margin: 0; }
+.heiz-unten { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; margin-top: 16px; }
+.feiertage { list-style: none; padding: 0; margin: 10px 0 0; font-size: .9rem; }
+.feiertage li { padding: 5px 0; border-top: 1px solid var(--linie); }
+.vorlagen { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+.vorlage { border: 1px solid var(--linie); background: var(--feld); border-radius: 12px; padding: 10px 12px; cursor: grab; display: flex; flex-direction: column; gap: 6px; text-align: left; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.vorlage:hover { border-color: var(--akzent); }
+.vorlage.bereit { box-shadow: 0 0 0 2px var(--akzent); }
+.vorlage-kopf { display: flex; align-items: center; gap: 6px; }
+.vorlage-kopf b { flex: 1; }
+.vorlage .griff { position: static; transform: none; opacity: .6; padding: 0; }
+.vorlage.neu { border-style: dashed; background: none; align-items: center; justify-content: center; flex-direction: row; color: var(--leise); cursor: pointer; font: inherit; }
+.vorlage.geist { cursor: grabbing; }
+.leiste { position: relative; height: 12px; border-radius: 6px; background: color-mix(in srgb, var(--kalt) 10%, var(--karte)); overflow: hidden; }
+.leiste .block { position: absolute; top: 0; bottom: 0; font-size: .65rem; line-height: 12px; color: #7c2d12; text-align: center; overflow: hidden; }
+.editor-raeume .leiste { height: 16px; flex: 1; min-width: 120px; }
+.editor-raeume .leiste .block { line-height: 16px; }
+.woche { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.tag { border: 1px solid var(--linie); background: var(--feld); border-radius: 12px; padding: 10px; min-height: 76px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.tag.heute { border: 2px solid var(--akzent); background: var(--akzent-hell); }
+.tag.ueber { outline: 3px dashed var(--akzent); outline-offset: 2px; }
+.tag .hinweis { font-size: .75rem; color: var(--akzent-text); }
+@media (max-width: 759px) { .woche { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); } }
+.tag b, .tag .hinweis { overflow-wrap: anywhere; }
+.wr { margin-top: 12px; overflow-x: auto; }
+.wr-zeile { display: grid; grid-template-columns: 110px repeat(7, minmax(92px, 1fr)); gap: 4px; align-items: center; min-width: 760px; }
+.wr-zeile + .wr-zeile { margin-top: 4px; }
+.wr-raum { font-weight: 600; font-size: .9rem; position: sticky; left: 0; background: var(--karte); z-index: 2; }
+.wr-kopf .wr-tag { font-size: .82rem; font-weight: 600; }
+.wr-kopf .wr-tag small { display: block; font-weight: 400; color: var(--leise); }
+.wr-kopf .wr-tag.heute { color: var(--akzent-text); }
+.wr-uhr .wr-tag { display: flex; justify-content: space-between; font-size: .65rem; color: var(--leise); }
+.wr-zelle { position: relative; height: 34px; border-radius: 6px; background: color-mix(in srgb, var(--kalt) 9%, var(--karte)); background-image: linear-gradient(90deg, transparent calc(25% - .5px), var(--linie) calc(25% - .5px), var(--linie) 25%, transparent 25%, transparent calc(50% - .5px), var(--linie) calc(50% - .5px), var(--linie) 50%, transparent 50%, transparent calc(75% - .5px), var(--linie) calc(75% - .5px), var(--linie) 75%, transparent 75%); }
+.wr-zelle.heute { box-shadow: inset 0 0 0 2px var(--akzent); }
+.wr-block { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; cursor: grab; touch-action: none; }
+.wr-block.aktiv { outline: 2px solid var(--text); outline-offset: -2px; }
+.wr-block .kante { position: absolute; top: -3px; bottom: -3px; width: 10px; cursor: ew-resize; z-index: 1; }
+.wr-block .kante.links { left: -5px; }
+.wr-block .kante.rechts { right: -5px; }
+.wr-block .kante:hover, .wr-block .kante:active { background: color-mix(in srgb, var(--text) 35%, transparent); border-radius: 3px; }
+.zieh-tipp { position: fixed; left: 0; top: 0; z-index: 120; background: var(--text); color: var(--karte); padding: 4px 10px; border-radius: 8px; font-size: .82rem; pointer-events: none; white-space: nowrap; }
+.legende { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.legende i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+.editor-raum { border-top: 1px solid var(--linie); padding: 10px 0; }
+.editor-raum-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.editor-raum-kopf b { min-width: 7em; }
+.punkte { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.punkt-feld { display: inline-flex; align-items: center; gap: 4px; background: var(--feld); border-radius: 10px; padding: 4px 6px; }
+.punkt-feld input[type=number] { width: 4.6em; }
+
+/* ---------------------------------------------------------------- Dialog & Meldungen */
+.dialog { border: 0; border-radius: 18px; padding: 0; width: min(460px, calc(100vw - 24px)); max-height: calc(100vh - 40px); background: var(--karte); color: var(--text); box-shadow: var(--schatten2); }
+.dialog.breit { width: min(820px, calc(100vw - 24px)); }
+.dialog::backdrop { background: rgba(15, 23, 42, .4); }
+.dialog-kopf { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 8px; position: sticky; top: 0; background: var(--karte); z-index: 1; }
+.dialog-inhalt { padding: 4px 18px 12px; }
+.dialog-fuss { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--linie); position: sticky; bottom: 0; background: var(--karte); }
+@media (max-width: 759px) { .dialog { margin: auto auto 0; width: 100vw; max-width: 100vw; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); } }
+#meldungen { position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+@media (max-width: 759px) { #meldungen { bottom: calc(80px + env(safe-area-inset-bottom)); } }
+.meldung { background: var(--text); color: var(--karte); padding: 10px 16px; border-radius: 12px; box-shadow: var(--schatten2); transition: opacity .5s, transform .5s; max-width: 90vw; }
+.meldung.fehler { background: var(--rot); color: #fff; }
+.meldung.weg { opacity: 0; transform: translateY(8px); }
+.tag.vorbei { opacity: .6; }
+/* kleine Kacheln: Name darf zweizeilig sein, Schalter rutscht darunter */
+.karte.el.g-s .k-kopf { flex-wrap: wrap; row-gap: 8px; }
+.karte.el.g-s .k-titel { flex-basis: calc(100% - 44px); }
+.karte.el.g-s .k-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.karte.el.g-s .k-kopf > .kipp, .karte.el.g-s .k-kopf > .knopf { margin-left: 40px; }

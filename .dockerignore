@@ -1,0 +1,7 @@
+.git
+test
+heizplan
+deploy
+*.png
+!public/*.png
+ANLEITUNG.md

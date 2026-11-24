@@ -1,6 +1,6 @@
 // Bedienelemente für Geräte: Licht (mit Lichtstimmungen und Abgleich), Heizung, Steckdosen, Sensoren, Alle Lichter, Haus-Modus
 import { h, icon, live, befehl, api, melde, dialog, gedrosselt, zahl, einheit, de, leer, zeit, grad, hsbZuCss, hsbZuHex, hexZuHsb, kelvinCss, zuMin, zuHHMM } from './kern.js';
-import { M, S, st, item, lichtAn, helligkeit, lichter, planRaum, punktName, punktArt, teilName } from './modell.js';
+import { M, S, st, item, lichtAn, helligkeit, lichter, planRaum, punktName, punktArt, teilName, maxTeile, raumthermostate } from './modell.js';
 
 // ------------------------------------------------------------------ Lichtstimmungen (bewusst gedämpft – billige RGB-LEDs mischen grelle Farben schlecht)
 export const STIMMUNGEN = [
@@ -188,7 +188,13 @@ export function heizInhalt(g, groesse = 'm') {
   }
   if (groesse === 'voll') {
     const bat = p.batterie.filter((b) => st(b.name) === 'ON');
-    teile.push(h('div', { class: 'leise klein' }, [p.fenster ? 'Fenster ' + wertText(p.fenster) : null, bat.length ? '⚠ Batterie schwach: ' + bat.map((b) => b.quelle || b.name).join(', ') : 'Batterien in Ordnung'].filter(Boolean).join(' · ')));
+    const mt = maxTeile(g);
+    if (mt) teile.push(h('div', { class: 'leise klein', style: { marginTop: '8px' } }, 'MAX!: ' + mt));
+    for (const r of raumthermostate(g.raum)) {
+      const w = [r.p.temp && wertText(r.p.temp), r.p.feuchte && wertText(r.p.feuchte)].filter(Boolean).join(' · ');
+      teile.push(h('div', { class: 'leise klein' }, r.label + ': ' + (w || '–')));
+    }
+    teile.push(h('div', { class: 'leise klein' }, [p.fenster ? 'Fenster ' + wertText(p.fenster) : null, bat.length ? '⚠ Batterie schwach: ' + bat.map((b) => teilName(b.quelle) || b.name).join(', ') : 'Batterien in Ordnung'].filter(Boolean).join(' · ')));
   }
   return h('div', { class: 'heiz' + (fensterAuf ? ' fenster' : '') }, teile);
 }
@@ -242,19 +248,32 @@ export function geraetInhalt(g, groesse = 'm', mitRaum = false) {
 const ARTEN = [['bedienung', 'Bedienung'], ['messung', 'Messwerte'], ['zustand', 'Batterie & Verbindung'], ['technik', 'Technik']];
 /** Alle Werte eines Geräts – verständlich benannt und sortiert; bei mehrteiligen Geräten (Heizung) je Teil */
 export function alleWerte(g) {
+  // gleiche Namen innerhalb eines Geräts unterscheiden (z. B. zwei Fühler in einem Zigbee-Thermostat, zwei Leistungswerte eines Shelly)
+  const anzahl = {};
+  for (const n of g.alle) { const i = item(n); if (i) { const k = punktName(i) + '|' + ((g.teilVon && g.teilVon[n]) || ''); anzahl[k] = (anzahl[k] || 0) + 1; } }
+  const fuehler = g.alle.some((n) => /luftfeu|humid/i.test(n)) && g.alle.some((n) => !/luftfeu|humid/i.test(n) && /temp|termostat|thermostat/i.test(n));
+  const gesehen = new Set(); const doppelt = new Set();
+  for (const n of g.alle) { const i = item(n); if (!i || fuehler) continue; const k = punktName(i) + '|' + ((g.teilVon && g.teilVon[n]) || ''); if (anzahl[k] > 1) { if (gesehen.has(k)) doppelt.add(n); gesehen.add(k); } }
+  const name = (i) => {
+    const k = punktName(i) + '|' + ((g.teilVon && g.teilVon[i.name]) || '');
+    if (anzahl[k] < 2) return punktName(i);
+    if (fuehler) return punktName(i) + (/luftfeu|humid/i.test(i.name) ? ' · Feuchtefühler' : ' · Temperaturfühler');
+    return doppelt.has(i.name) ? punktName(i) + ' (' + i.label + ')' : punktName(i);
+  };
+  const art = (i) => (doppelt.has(i.name) ? 'technik' : punktArt(i));   // gleiche Werte doppelt (z. B. Shelly deutsch + englisch): zweiten unter Technik
   const zeile = (i) => {
     const bedienbar = !i.readOnly && i.type === 'Switch' && !i.tags.includes('LowBattery') && !i.tags.includes('Alarm');
-    return h('div', { class: 'wertzeile' }, h('span', { class: 'leise' }, punktName(i)), bedienbar ? kipp(st(i.name) === 'ON', (x) => befehl(i.name, x ? 'ON' : 'OFF'), punktName(i)) : h('span', null, wertText(i)));
+    return h('div', { class: 'wertzeile' }, h('span', { class: 'leise' }, name(i)), bedienbar ? kipp(st(i.name) === 'ON', (x) => befehl(i.name, x ? 'ON' : 'OFF'), punktName(i)) : h('span', null, wertText(i)));
   };
   const werte = g.alle.map(item).filter(Boolean);
   // Herkunft (Untergerät) aus der Gruppenzugehörigkeit
   const teil = (i) => (g.teilVon && g.teilVon[i.name]) || null;
   const teile = [...new Set(werte.map(teil))];
-  const block = (liste) => ARTEN.map(([art, titel]) => {
-    const l = liste.filter((i) => punktArt(i) === art);
+  const block = (liste) => ARTEN.map(([artId, titel]) => {
+    const l = liste.filter((i) => art(i) === artId);
     if (!l.length) return null;
     const inhalt = l.map(zeile);
-    if (art === 'technik') return h('details', { class: 'werte-gruppe' }, h('summary', { class: 'leise klein' }, titel + ' (' + l.length + ')'), inhalt);
+    if (artId === 'technik') return h('details', { class: 'werte-gruppe' }, h('summary', { class: 'leise klein' }, titel + ' (' + l.length + ')'), inhalt);
     return h('div', { class: 'werte-gruppe' }, h('div', { class: 'werte-titel leise klein' }, titel), inhalt);
   });
   if (teile.length > 1) {
@@ -312,7 +331,7 @@ const name = (H, id) => { const v = H.daten.vorlagen.find((x) => x.id === id); r
 
 /** Raum als Kachel: Temperatur, Lichter, kurz alles aus */
 export function raumInhalt(r) {
-  const t = (() => { const g = r.geraete.find((x) => x.klasse === 'heizung' && x.p.temp) || r.geraete.find((x) => x.p.temp && x.klasse === 'sensor'); return g ? zahl(st(g.p.temp.name)) : NaN; })();
+  const t = (() => { const g = r.geraete.find((x) => x.klasse === 'heizung' && x.p.temp) || r.geraete.find((x) => x.p.temp && (x.klasse === 'raumthermostat' || x.klasse === 'sensor')); return g ? zahl(st(g.p.temp.name)) : NaN; })();
   const l = r.geraete.filter((g) => g.klasse === 'licht');
   const an = l.filter((g) => lichtAn(g));
   return h('div', { class: 'raumkachel' }, kopf(r.label, [Number.isFinite(t) ? grad(t) : null, l.length ? an.length + ' von ' + l.length + ' Lichtern an' : null].filter(Boolean).join(' · '), an.length ? h('button', { class: 'knopf leicht klein', onclick: (e) => { e.stopPropagation(); an.forEach((g) => sendeLicht(g, false)); } }, 'Licht aus') : null, 'raum'));

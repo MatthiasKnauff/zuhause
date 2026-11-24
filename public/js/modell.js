@@ -70,9 +70,9 @@ export function teilName(quelle) {
   if (!quelle) return '';
   const i = M.items.get(quelle);
   const l = schoen(i && i.label, quelle);
-  if (/^WT[_ ]/i.test(quelle)) return 'Wandthermostat';
-  if (/^HT[_ ]/i.test(quelle)) { const n = /(\d)\s*$/.exec(l.trim()); return 'Heizkörper' + (n ? ' ' + n[1] : ''); }
-  if (/^FK[_ ]/i.test(quelle)) return 'Fensterkontakt';
+  if (/^WT[_ ]/i.test(quelle)) return 'MAX!-Wandthermostat';
+  if (/^HT[_ ]/i.test(quelle)) { const n = /(\d)\s*$/.exec(l.trim()); return 'MAX!-Heizkörperthermostat' + (n ? ' ' + n[1] : ''); }
+  if (/^FK[_ ]/i.test(quelle)) return 'MAX!-Fensterkontakt';
   if (/cube/i.test(quelle)) return 'MAX!-Cube';
   return l;
 }
@@ -105,6 +105,7 @@ const GERAETE_NAMEN = [
   [/^BitShake Stromz(ä|a)hler$/i, 'Stromzähler'],
   [/^Eco[ _-]?Taster$/i, 'Eco-Taster (Heizung)'],
   [/^Außensensor$/i, 'Außenfühler'],
+  [/^Klimasensor (.+)$/i, 'Raumthermostat $1'],
 ];
 const INTERN = /^Heizplan_|^alle_Lichter$|^Heizungsmodus_alle$/;
 
@@ -142,7 +143,7 @@ export function aufbauen(liste) {
   const eigene = (S.namen && S.namen.geraete) || {};
   for (const g of M.geraete.values()) {
     g.openhabLabel = g.label; g.openhabRaum = g.raum;
-    for (const [re, neu] of GERAETE_NAMEN) if (re.test(g.label)) { g.label = neu; break; }
+    for (const [re, neu] of GERAETE_NAMEN) if (re.test(g.label) && (!/^Raumthermostat/.test(neu) || g.klasse === 'raumthermostat')) { g.label = g.label.replace(re, neu); break; }
     if (!g.raum) g.raum = /au(ss|ß)en|outdoor|wetter|garten|balkon/i.test(g.name + ' ' + g.openhabLabel) ? 'zh:draussen' : 'zh:technik';
     const e = eigene[g.name];
     if (e) { if (e.label) g.label = e.label; if (e.raum && (e.raum.startsWith('zh:') || orte.some((o) => o.name === e.raum))) g.raum = e.raum; g.versteckt = !!e.versteckt; }
@@ -204,6 +205,7 @@ function geraet(g, raum, einzeln) {
   const label = schoen(g.label, g.name);
   if (g.tags.includes('RadiatorControl') || g.tags.includes('Thermostat') || p.soll) klasse = 'heizung';
   else if (g.tags.includes('LightSource') || g.tags.includes('Lightbulb') || alle.some((i) => hat(i, 'Light')) || /lampe|licht|leuchte|\bled\b|kugel/i.test(label) || ((p.dimmer || p.farbe || p.ct) && !p.leistung)) klasse = 'licht';
+  else if (/th?ermostat/i.test(g.name + ' ' + label) && !p.soll) klasse = 'raumthermostat';   // andere Raumthermostate (z. B. Zigbee), nur Messwerte
   else if (g.tags.includes('TemperatureSensor') || (!p.schalter && (p.temp || p.feuchte))) klasse = 'sensor';
   else if (g.tags.includes('PowerOutlet') || p.schalter) klasse = 'steckdose';
   else if (p.leistung || p.energie) klasse = 'zaehler';
@@ -223,6 +225,15 @@ export function helligkeit(g) {
   if (g.p.farbe) return zahl(String(st(g.p.farbe.name)).split(',')[2]);
   return NaN;
 }
+/** Bestandteile einer MAX!-Raumheizung, z. B. „Wandthermostat · 2 Heizkörperthermostate · Fensterkontakt“ */
+export function maxTeile(g) {
+  const q = new Set(Object.values(g.teilVon || {}).filter(Boolean));
+  const n = (re) => [...q].filter((x) => re.test(x)).length;
+  const wt = n(/^WT[_ ]/i), ht = n(/^HT[_ ]/i), fk = n(/^FK[_ ]/i);
+  return [wt ? (wt > 1 ? wt + ' Wandthermostate' : 'Wandthermostat') : null, ht ? (ht > 1 ? ht + ' Heizkörperthermostate' : 'Heizkörperthermostat') : null, fk ? (fk > 1 ? fk + ' Fensterkontakte' : 'Fensterkontakt') : null].filter(Boolean).join(' · ');
+}
+/** andere Raumthermostate (nicht MAX!) im selben Raum */
+export const raumthermostate = (raum) => [...M.geraete.values()].filter((x) => x.klasse === 'raumthermostat' && x.raum === raum && !x.versteckt);
 export const lichter = () => [...M.geraete.values()].filter((g) => g.klasse === 'licht' && !g.versteckt && (g.p.schalter || g.p.dimmer || g.p.farbe));
 export const geschaltet = (g) => g.p.schalter ? st(g.p.schalter.name) === 'ON' : false;
 export function aussenTemp() {
@@ -231,7 +242,7 @@ export function aussenTemp() {
 }
 export function raumTemp(raumName) {
   const r = M.raeume.find((x) => x.name === raumName); if (!r) return NaN;
-  const h = r.geraete.find((g) => g.klasse === 'heizung' && g.p.temp) || r.geraete.find((g) => g.klasse === 'sensor' && g.p.temp);
+  const h = r.geraete.find((g) => g.klasse === 'heizung' && g.p.temp) || r.geraete.find((g) => (g.klasse === 'raumthermostat' || g.klasse === 'sensor') && g.p.temp);
   return h ? zahl(st(h.p.temp.name)) : NaN;
 }
 export const verfuegbar = (name) => !leer(M.items.get(name) && M.items.get(name).state);

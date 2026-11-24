@@ -202,7 +202,7 @@ function angebot() {
   const gruppen = [];
   gruppen.push(['Besonderes', BESONDERE.filter((b) => treffer(b.name)).map((b) => ({ art: b.art, name: b.name, text: b.text, groesse: 'm' }))]);
   gruppen.push(['Räume', M.raeume.filter((r) => treffer(r.label)).map((r) => ({ art: 'raum', ref: r.name, name: r.label, text: r.geraete.length + ' Geräte', groesse: 's' }))]);
-  const KL = { licht: 'Licht', heizung: 'Heizung', steckdose: 'Steckdose', sensor: 'Sensor', zaehler: 'Zähler', sonst: 'Gerät' };
+  const KL = { licht: 'Licht', heizung: 'Heizung (MAX!)', raumthermostat: 'Raumthermostat', steckdose: 'Steckdose', sensor: 'Sensor', zaehler: 'Zähler', sonst: 'Gerät' };
   for (const r of M.raeume) {
     const g = r.geraete.filter((x) => treffer(x.label + ' ' + r.label + ' ' + KL[x.klasse] + ' ' + x.openhabLabel));
     if (g.length) gruppen.push([r.label, g.map((x) => ({ art: x.klasse === 'heizung' ? 'heizung' : 'geraet', ref: x.name, name: x.label, text: KL[x.klasse], groesse: x.klasse === 'heizung' || (x.klasse === 'licht' && (x.p.farbe || x.p.dimmer)) ? 'm' : 's' }))]);

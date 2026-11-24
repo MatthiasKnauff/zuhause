@@ -5,8 +5,8 @@ import { geraetInhalt, alleWerte, alleLichterInhalt, wertText, lichtSchalten } f
 import { stern } from './start.js';
 import { darstellungAnwenden } from './app.js';
 
-const KLASSEN = { licht: 'Licht', heizung: 'Heizung', steckdose: 'Steckdosen & Schalter', sensor: 'Sensoren', zaehler: 'Zähler', sonst: 'Sonstiges' };
-const ORDNUNG = ['heizung', 'licht', 'steckdose', 'sensor', 'zaehler', 'sonst'];
+const KLASSEN = { licht: 'Licht', heizung: 'Heizung (MAX!)', raumthermostat: 'Raumthermostate (nicht MAX!)', steckdose: 'Steckdosen & Schalter', sensor: 'Sensoren', zaehler: 'Zähler', sonst: 'Sonstiges' };
+const ORDNUNG = ['heizung', 'raumthermostat', 'licht', 'steckdose', 'sensor', 'zaehler', 'sonst'];
 
 function geraetKarte(g, { mitRaum = false, alle = false } = {}) {
   const groesse = g.klasse === 'licht' && (g.p.farbe || g.p.ct) ? 'voll' : g.klasse === 'heizung' ? 'voll' : 'l';

@@ -2,7 +2,7 @@
 // PC: am Griff ziehen · Handy: lange drücken und ziehen · Ecke unten rechts = Größe · × = entfernen
 import { h, icon, live, api, melde, dialog, leeren, zahl, de, grad } from './kern.js';
 import { M, S, st, item, lichter, lichtAn, aussenTemp, punktName } from './modell.js';
-import { geraetInhalt, heizInhalt, alleLichterInhalt, hausInhalt, heuteInhalt, raumInhalt, kopf, kipp, wertText } from './widgets.js';
+import { geraetInhalt, heizInhalt, alleLichterInhalt, hausInhalt, heuteInhalt, raumInhalt, kopf, kipp, wertText, geraetDetail } from './widgets.js';
 import { befehl } from './kern.js';
 
 const BESONDERE = [
@@ -98,6 +98,15 @@ function karte(e) {
   const ecke = h('span', { class: 'ecke', title: 'Ziehen: klein · mittel · groß', 'aria-hidden': 'true' });
   k.append(griff, weg, inhalt(e));
   if (e.art !== 'titel') k.append(ecke);
+  // Antippen (nicht auf Schalter/Regler) öffnet die Detailansicht mit Verlauf
+  const g = (e.art === 'geraet' || e.art === 'heizung') && M.geraete.get(e.ref);
+  if (g) {
+    k.classList.add('oeffnet');
+    k.addEventListener('click', (ev) => {
+      if (Date.now() - zuletztGezogen < 400 || ev.target.closest('button,input,select,a,label,.ecke,.griff,.weg,.drei')) return;
+      geraetDetail(g);
+    });
+  }
   if (e.art === 'titel') {
     k.classList.add('titel-el');
     k.addEventListener('dblclick', () => {
@@ -122,7 +131,7 @@ function karte(e) {
 }
 
 // ------------------------------------------------------------------ Ziehen (verschieben und aus der Liste hinzufügen)
-let ziehen = null;
+let ziehen = null; let zuletztGezogen = 0;
 document.addEventListener('touchmove', (e) => { if (ziehen) e.preventDefault(); }, { passive: false });
 
 function geist(quelle, x, y) {
@@ -167,7 +176,7 @@ function bewegen(x, y) {
 }
 async function beiEnde(ev) {
   if (!ziehen || ev.pointerId !== ziehen.pid) return;
-  const z = ziehen; ziehen = null;
+  const z = ziehen; ziehen = null; zuletztGezogen = Date.now();
   window.removeEventListener('pointermove', beiBewegung); window.removeEventListener('pointerup', beiEnde); window.removeEventListener('pointercancel', beiEnde);
   document.body.classList.remove('kein-scroll');
   z.gst.el.remove(); z.k.classList.remove('zieht');
@@ -201,7 +210,7 @@ function groesseStart(ev, k, e) {
   };
   const up = async () => {
     window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
-    k.classList.remove('groesse-aendern');
+    k.classList.remove('groesse-aendern'); zuletztGezogen = Date.now();
     if (e.groesse !== alt) { neuZeichnen(); await speichern(); }
   };
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);

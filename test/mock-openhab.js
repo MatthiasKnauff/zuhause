@@ -79,6 +79,21 @@ function mockOpenhab({ port, itemDatei, metaDatei, token = 'test-token', aufraeu
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify([...items.values()]));
     }
+    // Persistenz: erfundener, aber plausibler Tagesgang um den aktuellen Wert
+    const pm = /^\/rest\/persistence\/items\/([^/]+)$/.exec(url.pathname);
+    if (pm && items.has(pm[1])) {
+      const i = items.get(pm[1]); const basis = parseFloat(i.state);
+      if (!Number.isFinite(basis)) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ name: i.name, data: [] })); }
+      const von = Date.parse(url.searchParams.get('starttime')), bis = Date.parse(url.searchParams.get('endtime'));
+      const data = [];
+      for (let t = von; t <= bis; t += 10 * 60e3) {
+        const std = new Date(t).getHours() + new Date(t).getMinutes() / 60;
+        const welle = Math.sin((std - 9) / 24 * 2 * Math.PI);
+        const v = /W$|Verbrauch|Leistung/i.test(i.state + i.label) ? Math.max(0, basis * (1 + 0.6 * welle) + (Math.sin(t / 7e5) * basis * 0.2)) : basis + welle * 1.5 + Math.sin(t / 3e6) * 0.3;
+        data.push({ time: t, state: String(Math.round(v * 10) / 10) });
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ name: i.name, datapoints: String(data.length), data }));
+    }
     const m = /^\/rest\/items\/([^/]+)(\/state)?$/.exec(url.pathname);
     if (m && items.has(m[1])) {
       const i = items.get(m[1]);

@@ -1,7 +1,7 @@
 // Seiten: Räume, Licht, Energie, Geräte, Benutzer & Einstellungen
 import { h, icon, api, melde, dialog, leeren, live, zahl, de, grad } from './kern.js';
 import { M, S, st, lichtAn, raumTemp, KLASSEN_WAHL } from './modell.js';
-import { geraetInhalt, alleWerte, alleLichterInhalt, wertText, lichtSchalten } from './widgets.js';
+import { geraetInhalt, alleWerte, alleLichterInhalt, wertText, lichtSchalten, geraetDetail, verlaufBox, verlaufItem } from './widgets.js';
 import { stern } from './start.js';
 import { darstellungAnwenden } from './app.js';
 
@@ -16,6 +16,9 @@ function geraetKarte(g, { mitRaum = false, alle = false } = {}) {
   k.append(h('div', { class: 'karte-ecke' }, S.ich.benutzer.rolle === 'admin' ? h('button', { class: 'stern', title: 'Name und Raum ändern', 'aria-label': g.label + ': Name und Raum ändern', onclick: (e) => { e.stopPropagation(); umbenennen(g); } }, icon('stift', 16)) : null, stern(art, g.name, g.klasse === 'heizung' || g.p.dimmer || g.p.farbe ? 'm' : 's')),
     live(() => geraetInhalt(g, groesse, mitRaum)), werte);
   if (alle && g.alle.length > 1) werte.append(live(() => alleWerte(g)));
+  // Antippen der Karte (nicht der Bedienelemente) öffnet Details mit Verlauf
+  k.classList.add('oeffnet');
+  k.addEventListener('click', (ev) => { if (!ev.target.closest('button,input,select,a,label,details,.drei,.alle-werte')) geraetDetail(g); });
   return k;
 }
 
@@ -93,6 +96,7 @@ export function energieSeite(z) {
       return h('div', null, h('div', { class: 'leise' }, zaehler.label + ' · Haus gesamt'), h('div', { class: 'riesig' }, de(w, 0), h('small', null, ' W')),
         zaehler.p.energie ? h('div', { class: 'leise' }, 'Zählerstand ' + wertText(zaehler.p.energie)) : null);
     })) : null,
+    zaehler && zaehler.p.leistung ? h('div', { class: 'karte' }, verlaufBox(zaehler.p.leistung, 'Verbrauch Haus')) : null,
     h('h2', { class: 'abschnitt' }, 'Verbraucher jetzt'),
     h('div', { class: 'karte' }, live(() => {
       const werte = geraete.map((g) => ({ g, w: zahl(st(g.p.leistung.name)) })).filter((x) => Number.isFinite(x.w)).sort((a, b) => b.w - a.w);

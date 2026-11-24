@@ -101,6 +101,17 @@ const routen = [
   ['GET', /^\/api\/items$/, () => [...oh.items.values()]],
   ['POST', /^\/api\/item\/([A-Za-z0-9_]+)$/, async (m, k) => { await oh.befehl(m[1], k.wert); }],
   ['GET', /^\/api\/lampen$/, () => lampen],
+  // Verlauf eines Messwerts (Temperatur, Leistung …) – höchstens 400 Punkte, damit es am Handy flott bleibt
+  ['GET', /^\/api\/verlauf\/([A-Za-z0-9_]{1,120})$/, async (m, k, b, url) => {
+    if (!oh.items.has(m[1])) throw Object.assign(new Error('Unbekanntes Item'), { status: 404 });
+    const stunden = Math.min(24 * 31, Math.max(1, Number(url.searchParams.get('stunden')) || 24));
+    const bis = Date.now(), von = bis - stunden * 3600e3;
+    let punkte;
+    try { punkte = await oh.verlauf(m[1], von, bis); } catch (e) { throw Object.assign(new Error('Kein Verlauf in openHAB gespeichert'), { status: 404 }); }
+    const schritt = Math.max(1, Math.ceil(punkte.length / 400));
+    const aus = []; for (let i = 0; i < punkte.length; i += schritt) { const t = punkte.slice(i, i + schritt); aus.push([t[0][0], t.reduce((s, x) => s + x[1], 0) / t.length]); }
+    return { von, bis, punkte: aus };
+  }],
   ['GET', /^\/api\/namen$/, () => namen],
   ['PUT', /^\/api\/namen$/, (m, k, b) => { nurAdmin(b); return namenSetzen(k); }],
   ['PUT', /^\/api\/lampen\/([A-Za-z0-9_]+)$/, (m, k) => {
@@ -155,7 +166,7 @@ const server = http.createServer(async (req, res) => {
         const m = req.method === methode && muster.exec(url.pathname);
         if (!m) continue;
         const k = req.method === 'GET' ? {} : await koerper(req);
-        const erg = await f(m, k, b);
+        const erg = await f(m, k, b, url);
         return json(res, 200, erg === undefined ? { ok: true } : erg);
       }
       return json(res, 404, { fehler: 'Unbekannte Funktion' });

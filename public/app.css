@@ -391,3 +391,19 @@ details.werte-gruppe summary { cursor: pointer; padding: 6px 0; text-transform: 
   .karte.el.g-s .heiz .soll .rund { width: 30px; height: 30px; font-size: 1rem; }
   .karte.el.g-s .heiz .soll-wert { min-width: 44px; }
 }
+/* Verläufe */
+.verlauf { width: 100%; height: auto; display: block; overflow: visible; }
+.verlauf.klein { height: 44px; margin-top: 8px; }
+.v-linie { fill: none; stroke: var(--akzent); stroke-width: 2; }
+.v-flaeche { fill: color-mix(in srgb, var(--akzent) 12%, transparent); stroke: none; }
+.v-gitter { stroke: var(--linie); stroke-width: 1; }
+.v-text { fill: var(--leise); font-size: 12px; font-family: inherit; }
+.verlauf-box { margin-top: 12px; }
+.verlauf-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.verlauf-kopf .chips { margin-top: 0; }
+.verlauf-zahlen { display: flex; gap: 16px; font-size: .85rem; color: var(--leise); margin-top: 4px; }
+.k-name.klickbar, .karte.el.oeffnet { cursor: pointer; }
+.karte.el.oeffnet:hover { box-shadow: var(--schatten), 0 0 0 1px var(--feld2); }
+.karte.geraet.oeffnet { cursor: pointer; }
+.detail-werte { margin-top: 14px; }
+.detail-werte summary { cursor: pointer; padding: 6px 0; }

@@ -45,6 +45,12 @@ class OpenHAB extends EventEmitter {
     await this._anfrage('POST', 'rest/items/' + encodeURIComponent(name), String(wert));
   }
 
+  /** Verlauf aus der openHAB-Persistenz (Standarddienst); liefert [[zeitMs, zahl], …] */
+  async verlauf(name, vonMs, bisMs) {
+    const q = 'starttime=' + encodeURIComponent(new Date(vonMs).toISOString()) + '&endtime=' + encodeURIComponent(new Date(bisMs).toISOString());
+    const d = JSON.parse(await this._anfrage('GET', 'rest/persistence/items/' + encodeURIComponent(name) + '?' + q));
+    return (d.data || []).map((p) => [Number(p.time), parseFloat(p.state)]).filter(([t, v]) => Number.isFinite(t) && Number.isFinite(v));
+  }
   async zustand(name) { return this._anfrage('GET', 'rest/items/' + encodeURIComponent(name) + '/state'); }
 
   /** Ereignisstrom: Zustände live, Modelländerungen lösen ein Neuladen aus */

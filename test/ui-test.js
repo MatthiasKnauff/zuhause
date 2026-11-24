@@ -79,6 +79,13 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   pruefe(JSON.stringify(ids2) === JSON.stringify(await p.locator('.raster .karte.el').evaluateAll((l) => l.map((x) => x.dataset.id))) && ids2.includes(kid), 'Startseite bleibt nach Neuladen erhalten');
   await p.screenshot({ path: ordner + '/pc-start-geaendert.png', fullPage: true });
 
+  // Detailansicht mit Verlauf: Außenfühler auf der Startseite antippen
+  await p.locator('.raster .karte.el', { hasText: 'Außenfühler' }).first().locator('.k-name').click();
+  await p.waitForSelector('dialog .verlauf-box svg .v-linie', { timeout: 5000 }).catch(() => {});
+  pruefe(await p.locator('dialog .verlauf-box svg .v-linie').count() >= 1, 'Antippen zeigt Details mit Verlauf');
+  await p.locator('dialog .chip', { hasText: '7 Tage' }).first().click(); await p.waitForTimeout(600);
+  await p.screenshot({ path: ordner + '/pc-detail-verlauf.png' });
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   // Räume
   await p.click('.nav-oben a[data-seite=raeume]'); await p.waitForSelector('.raum-chips'); await p.waitForTimeout(400);
   pruefe(await p.locator('.raum-chips .chip').count() >= 7, 'Räume aus dem Modell (' + await p.locator('.raum-chips .chip').count() + ')');
@@ -132,6 +139,8 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   await p.screenshot({ path: ordner + '/pc-heizung-2.png', fullPage: true });
 
   // Energie, Geräte, Licht, Einstellungen
+  await p.click('.nav-oben a[data-seite=energie]'); await p.waitForTimeout(800);
+  pruefe(await p.locator('.seite-energie .verlauf-box svg .v-linie').count() === 1, 'Energie: Verlauf des Hausverbrauchs');
   for (const s of ['energie', 'geraete', 'licht']) { await p.click(`.nav-oben a[data-seite=${s}]`); await p.waitForTimeout(500); await p.screenshot({ path: `${ordner}/pc-${s}.png`, fullPage: true }); }
   await p.click('.nav-oben a[data-seite=einstellungen]'); await p.waitForSelector('.benutzer-liste');
   await p.click('button:has-text("Benutzer anlegen")');

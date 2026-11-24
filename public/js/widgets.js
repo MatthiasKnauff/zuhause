@@ -1,5 +1,5 @@
 // Bedienelemente für Geräte: Licht (mit Lichtstimmungen und Abgleich), Heizung, Steckdosen, Sensoren, Alle Lichter, Haus-Modus
-import { h, icon, live, befehl, api, melde, dialog, gedrosselt, zahl, einheit, de, leer, zeit, grad, hsbZuCss, hsbZuHex, hexZuHsb, kelvinCss, zuMin, zuHHMM } from './kern.js';
+import { h, icon, live, befehl, api, melde, dialog, gedrosselt, leeren, verlaufBild, zahl, einheit, de, leer, zeit, grad, hsbZuCss, hsbZuHex, hexZuHsb, kelvinCss, zuMin, zuHHMM } from './kern.js';
 import { M, S, st, item, lichtAn, helligkeit, lichter, planRaum, punktName, punktArt, teilName, maxTeile, raumthermostate } from './modell.js';
 
 // ------------------------------------------------------------------ Lichtstimmungen (bewusst gedämpft – billige RGB-LEDs mischen grelle Farben schlecht)
@@ -234,7 +234,8 @@ export function sensorInhalt(g, groesse = 'm', mitRaum = false) {
     return h('div', { class: 'sensor' }, kopf(g.label, unter, null, null), h('div', { class: 'leise klein', style: { marginTop: '8px' } }, [bat, ...rest.map((i) => i.label + ': ' + wertText(i))].filter(Boolean).join(' · ') || 'keine Werte'));
   }
   return h('div', { class: 'sensor' }, kopf(g.label, unter, null, null),
-    h('div', { class: 'sensor-werte' + (groesse === 's' ? ' klein' : '') }, werte.slice(0, groesse === 's' ? 1 : 4).map(([sym, w], i) => h('div', { class: 'sw' + (i === 0 ? ' haupt' : '') }, icon(sym, 14), h('span', null, w)))));
+    h('div', { class: 'sensor-werte' + (groesse === 's' ? ' klein' : '') }, werte.slice(0, groesse === 's' ? 1 : 4).map(([sym, w], i) => h('div', { class: 'sw' + (i === 0 ? ' haupt' : '') }, icon(sym, 14), h('span', null, w)))),
+    groesse !== 's' && groesse !== 'voll' && verlaufItem(g) ? sparkline(verlaufItem(g)) : null);
 }
 
 export function geraetInhalt(g, groesse = 'm', mitRaum = false) {
@@ -338,3 +339,54 @@ export function raumInhalt(r) {
 }
 
 export { live };
+
+// ------------------------------------------------------------------ Verlauf und Detailansicht
+const verlaufCache = new Map();
+async function verlaufLaden(name, stunden) {
+  const k = name + '|' + stunden; const c = verlaufCache.get(k);
+  if (c && Date.now() - c.zeit < 5 * 60e3) return c.daten;
+  const d = await api('verlauf/' + name + '?stunden=' + stunden);
+  verlaufCache.set(k, { zeit: Date.now(), daten: d });
+  return d;
+}
+/** Hauptmesswert eines Geräts für den Verlauf (Temperatur, sonst Leistung, sonst Feuchte) */
+export function verlaufItem(g) { return g.p.temp || g.p.leistung || g.p.feuchte || null; }
+const einheitVon = (i) => (i.type.includes('Temperature') || /temp/i.test(i.label) ? '°C' : i.type.includes('Power') || /leistung|verbrauch|power/i.test(i.label) ? 'W' : /feuchte|humid/i.test(i.label) ? '%' : '');
+
+/** Kleine Linie der letzten 24 Stunden (füllt große Kacheln sinnvoll) */
+export function sparkline(i) {
+  const box = h('div', { class: 'spark' });
+  verlaufLaden(i.name, 24).then((d) => box.append(verlaufBild(d.punkte, { klein: true }))).catch(() => {});
+  return box;
+}
+/** Diagramm mit Umschalter 24 h / 7 Tage / 30 Tage */
+export function verlaufBox(i, titel) {
+  const box = h('div', { class: 'verlauf-box' });
+  const bild = h('div'); const zahlen = h('div', { class: 'verlauf-zahlen' });
+  const e = einheitVon(i);
+  let stunden = 24;
+  const zeige = async () => {
+    leeren(bild, h('div', { class: 'leise klein' }, 'Verlauf wird geladen …'));
+    try {
+      const d = await verlaufLaden(i.name, stunden);
+      leeren(bild, verlaufBild(d.punkte, { einheit: e, stellen: e === 'W' ? 0 : 1, breite: bild.clientWidth || 600 }));
+      const w = d.punkte.map((p) => p[1]);
+      leeren(zahlen, w.length ? [h('span', null, 'min ' + de(Math.min(...w), e === 'W' ? 0 : 1) + ' ' + e), h('span', null, 'Ø ' + de(w.reduce((s, x) => s + x, 0) / w.length, e === 'W' ? 0 : 1) + ' ' + e), h('span', null, 'max ' + de(Math.max(...w), e === 'W' ? 0 : 1) + ' ' + e)] : []);
+    } catch (x) { leeren(bild, h('div', { class: 'leise klein' }, x.message)); leeren(zahlen); }
+    for (const b of knoepfe.querySelectorAll('.chip')) b.classList.toggle('aktiv', Number(b.dataset.h) === stunden);
+  };
+  const knoepfe = h('div', { class: 'chips' }, [[24, '24 Std.'], [168, '7 Tage'], [720, '30 Tage']].map(([s, n]) => h('button', { class: 'chip', dataset: { h: s }, onclick: () => { stunden = s; zeige(); } }, n)));
+  box.append(h('div', { class: 'verlauf-kopf' }, h('b', null, titel || punktName(i)), knoepfe), bild, zahlen);
+  zeige();
+  return box;
+}
+/** Detailansicht eines Geräts: volle Bedienung, Verlauf, alle Werte */
+export function geraetDetail(g) {
+  const vi = verlaufItem(g);
+  const inhalt = h('div', null,
+    live(() => geraetInhalt(g, 'voll', true)),
+    vi ? verlaufBox(vi) : null,
+    g.klasse === 'heizung' && g.p.soll ? verlaufBox(g.p.soll, 'Soll-Temperatur') : null,
+    g.alle.length > 1 ? h('details', { class: 'detail-werte' }, h('summary', { class: 'leise' }, 'Alle Werte (' + g.alle.length + ')'), live(() => alleWerte(g))) : null);
+  dialog(g.label, inhalt, { breit: true });
+}

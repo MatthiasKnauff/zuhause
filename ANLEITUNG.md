@@ -3,12 +3,11 @@
 Eigene Smart-Home-Oberfläche auf openHAB. Läuft als eigener Docker-Container, ohne Fremdpakete.
 Die Heizung bleibt in openHAB (MAX!-Binding). Wochenplan und Urlaub schreibt die Regel `heizplan.js` direkt in die Thermostate. Darum läuft die Heizung auch weiter, wenn openHAB oder die App ausfallen.
 
-## 1. Vorher: MAX!-Cube wieder openHAB geben
+## 1. Vorher: MAX!-Cube in openHAB prüfen
 
-Der Cube erlaubt nur **eine** Verbindung.
-
-1. Den Container **max-heizung** in Portainer stoppen.
-2. In openHAB die **MAX!-Cube-Bridge** wieder aktivieren (Einstellungen → Things → Cube → Aktivieren).
+Zu Hause gehört der Cube openHAB (MAX!-Binding). Die Bridge muss in openHAB aktiv sein
+(Einstellungen → Things → Cube). Die eigenständige MAX!-Heizungs-App läuft im Büro an einem
+anderen Cube und hat damit nichts zu tun.
 
 ## 2. Heizplan-Regel aktualisieren (neu: Urlaub mit Enddatum)
 

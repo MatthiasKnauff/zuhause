@@ -34,6 +34,19 @@ export function aufbauen(liste) {
     const raum = i.groupNames.find((g) => istOrt(M.items.get(g))) || null;
     M.geraete.set(i.name, geraet(i, raum));
   }
+  // Einzelne Items, die in keinem Gerät stecken (direkt im Raum oder ganz ohne Modell), werden ebenfalls Geräte –
+  // sonst fehlen z. B. Steckdosen oder Lampen, die in openHAB nicht als Equipment angelegt sind.
+  const inGeraet = (i, tiefe = 0) => tiefe < 8 && i.groupNames.some((g) => { const gi = M.items.get(g); return gi && (istGeraetGruppe(gi) || inGeraet(gi, tiefe + 1)); });
+  const ortVonItem = (i, tiefe = 0) => {
+    if (tiefe > 8) return null;
+    for (const g of i.groupNames) { if (istOrt(M.items.get(g))) return g; }
+    for (const g of i.groupNames) { const gi = M.items.get(g); const o = gi && ortVonItem(gi, tiefe + 1); if (o) return o; }
+    return null;
+  };
+  for (const i of liste) {
+    if (i.type === 'Group' || !EINZEL_TYPEN.test(i.type) || /^Heizplan_/.test(i.name) || !i.label || inGeraet(i)) continue;
+    M.geraete.set(i.name, geraet(i, ortVonItem(i), [{ ...i, quelle: null }]));
+  }
   const reihenfolge = ['wohnzimmer', 'kueche', 'arbeitszimmer', 'buero', 'schlafzimmer', 'kinderzimmer', 'bad', 'diele', 'flur', 'balkon', 'garten'];
   const rang = (o) => { const x = reihenfolge.indexOf(ohneUmlaut(o.label || o.name)); return x < 0 ? 99 : x; };
   M.raeume = orte.filter((o) => !o.groupNames.some((g) => istOrt(M.items.get(g))) || (M.kinder.get(o.name) || []).some((k) => M.geraete.has(k)))
@@ -57,12 +70,14 @@ function punkte(name, tiefe = 0) {
 const hat = (i, ...t) => t.every((x) => i.tags.includes(x));
 const NEBEN = /LED aus|Timer|Firmware|Taste|Eingang|Externes|Tastensperre|Batterie|Alarm|Alert/i;
 
-function geraet(g, raum) {
-  const alle = punkte(g.name).map((p) => ({ ...M.items.get(p.name), quelle: p.quelle }));
+const EINZEL_TYPEN = /^(Switch|Dimmer|Color|Rollershutter|Contact|Number)/;
+
+function geraet(g, raum, einzeln) {
+  const alle = einzeln || punkte(g.name).map((p) => ({ ...M.items.get(p.name), quelle: p.quelle }));
   const finde = (f, bevorzugt) => { const x = alle.filter(f); return (bevorzugt && x.find(bevorzugt)) || x[0]; };
   const wand = (i) => /^WT|Wand/i.test(i.quelle || i.name);
   const p = {
-    schalter: finde((i) => i.type === 'Switch' && hat(i, 'Switch') && (hat(i, 'Power') || hat(i, 'Light')) && !NEBEN.test(i.label)),
+    schalter: finde((i) => i.type === 'Switch' && ((hat(i, 'Switch') && (hat(i, 'Power') || hat(i, 'Light'))) || !!einzeln) && !NEBEN.test(i.label)),
     schalterAlle: alle.filter((i) => i.type === 'Switch' && hat(i, 'Switch') && (hat(i, 'Power') || hat(i, 'Light')) && !NEBEN.test(i.label)),
     dimmer: finde((i) => i.type === 'Dimmer'),
     farbe: finde((i) => i.type === 'Color'),

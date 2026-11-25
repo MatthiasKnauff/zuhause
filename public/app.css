@@ -407,3 +407,113 @@ details.werte-gruppe summary { cursor: pointer; padding: 6px 0; text-transform: 
 .karte.geraet.oeffnet { cursor: pointer; }
 .detail-werte { margin-top: 14px; }
 .detail-werte summary { cursor: pointer; padding: 6px 0; }
+
+/* ---------------------------------------------------------------- Aufgeräumte Startseite (wie die Übersicht) */
+.raster { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; grid-auto-rows: auto; }
+.raster .g-s { grid-column: span 1; grid-row: auto; }
+.raster .g-m { grid-column: span 2; grid-row: auto; }
+.raster .g-l { grid-column: span 3; grid-row: auto; }
+@media (max-width: 1250px) { .start.mit-panel .raster { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 759px) {
+  .raster { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .raster .g-l, .raster .g-m { grid-column: span 2; }
+}
+.raster .karte.el:not(.titel-el) { min-height: 0; padding: 12px 14px; border-radius: 12px; }
+.raster .karte.el.kompakt { padding: 0; background: var(--feld); box-shadow: none; border: 1px solid var(--linie); }
+.raster .karte.el.kompakt .griff { left: 0; }
+.raster .titel-el .start-titel { font-size: .74rem; }
+.raster .karte.el.titel-el { padding-top: 10px; }
+/* Schalt-Kachel */
+.schalt-kachel { display: flex; align-items: center; gap: 10px; padding: 10px 26px 10px 14px; min-height: 48px; cursor: pointer; border-radius: 12px; height: 100%; }
+.sk-sym { color: var(--leise); display: inline-flex; flex: none; }
+.sk-text { display: flex; flex-direction: column; min-width: 0; }
+.sk-name { font-size: .92rem; line-height: 1.2; overflow-wrap: anywhere; hyphens: auto; }
+.sk-unter { font-size: .75rem; color: var(--leise); }
+.schalt-kachel.k-licht.an { background: #fef3c7; box-shadow: inset 0 0 0 1px #fcd34d; }
+.schalt-kachel.k-licht.an .sk-sym { color: #d97706; }
+.schalt-kachel.k-geraet.an { background: #dcfce7; box-shadow: inset 0 0 0 1px #86efac; }
+.schalt-kachel.k-geraet.an .sk-sym { color: #16a34a; }
+:root[data-schema="dunkel"] .schalt-kachel.k-licht.an { background: #4a3410; box-shadow: inset 0 0 0 1px #92400e; }
+:root[data-schema="dunkel"] .schalt-kachel.k-geraet.an { background: #0f3b22; box-shadow: inset 0 0 0 1px #166534; }
+.raster .karte.el.kompakt > .live { height: 100%; }
+/* Wert-Kachel */
+.wert-kachel { padding: 12px 14px; }
+.wk-name { font-size: .78rem; color: var(--leise); }
+.wk-wert { font-size: 1.35rem; font-weight: 700; margin-top: 2px; }
+.wk-unter { font-size: .78rem; color: var(--kalt); margin-top: 2px; }
+/* Heizung als Zeile */
+.heiz-zeile-k { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+.hz-text { min-width: 0; }
+.hz-name { font-weight: 600; }
+.hz-unter { font-size: .78rem; color: var(--leise); }
+.heiz-zeile-k.fenster .hz-unter { color: var(--kalt); }
+.hz-soll { display: flex; align-items: center; gap: 6px; flex: none; }
+.hz-knopf { width: 30px; height: 30px; border-radius: 50%; border: 2px solid currentColor; background: none; font-size: 1.1rem; line-height: 1; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.hz-knopf.kalt { color: #3b82f6; }
+.hz-knopf.warm { color: #f59e0b; }
+.hz-wert { color: var(--akzent-text); font-weight: 700; min-width: 4.4em; text-align: center; }
+.raster .karte.el.kompakt .weg { top: 50%; transform: translateY(-50%); right: 4px; width: 20px; height: 20px; font-size: .85rem; background: transparent; }
+.raster .karte.el.kompakt .ecke { display: none; }
+.raster .karte.el.kompakt:hover .ecke { display: block; }
+.dialog-extras { display: flex; align-items: center; gap: 4px; }
+/* Kompakte Seiten */
+.seitenkopf.kompakt { margin-bottom: 6px; align-items: center; }
+.abschnitt-k { margin-top: 14px; }
+.abschnitt-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.abschnitt-kopf h2 { font-size: .74rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--leise); }
+.kachel-raster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.kachel { background: var(--feld); border: 1px solid var(--linie); border-radius: 12px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-width: 0; }
+.kachel:hover { border-color: var(--feld2); }
+.kachel.g-s { grid-column: span 1; }
+.kachel.g-m { grid-column: span 2; }
+.kachel > .live { height: 100%; }
+@media (max-width: 1100px) { .kachel-raster { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 759px) { .kachel-raster { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kachel.g-m { grid-column: span 2; } }
+.mini-drei { display: inline-flex; align-items: center; gap: 6px; }
+.hinweis-unten { margin-top: 18px; }
+.raum-chips { margin-bottom: 8px; }
+.raum-chips .chip { min-height: 30px; padding: 4px 10px; font-size: .88rem; }
+/* Reiter (Heizung) */
+.reiter { display: flex; gap: 2px; border-bottom: 1px solid var(--linie); margin: 4px 0 14px; overflow-x: auto; }
+.reiter a { padding: 9px 14px; text-decoration: none; color: var(--leise); border-bottom: 2px solid transparent; white-space: nowrap; font-size: .92rem; }
+.reiter a.aktiv { color: var(--akzent-text); border-bottom-color: var(--akzent); font-weight: 600; }
+.heiz-kacheln { margin-top: 10px; }
+.verlauf-raster, .max-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.verlauf-raster .karte, .max-raster .karte { margin: 0; }
+.warnung { color: var(--rot); font-weight: 600; }
+/* allgemein kompakter */
+.haupt { padding: 16px 24px 40px; }
+h1 { font-size: 1.4rem; }
+.karte { padding: 12px 14px; border-radius: 12px; }
+.karte + .karte, .karte + h2, .seite > .karte { margin-top: 10px; }
+.kopfleiste { min-height: 54px; }
+.nav-oben a { padding: 16px 12px 13px; }
+.seitenkopf { margin-bottom: 10px; }
+.abschnitt { margin: 18px 0 8px; }
+.karten-raster { gap: 10px; }
+.zwei-spalten, .heiz-oben, .heiz-unten { gap: 10px; }
+.heiz-unten { margin-top: 10px; }
+@media (max-width: 759px) { .haupt { padding: 10px 10px calc(84px + env(safe-area-inset-bottom)); } h1 { font-size: 1.25rem; } }
+/* kompakte Sonder-Elemente */
+.raster { align-items: start; }
+.kompakt-zeile { display: flex; align-items: center; gap: 10px; padding: 10px 28px 10px 14px; min-height: 48px; }
+.kompakt-zeile .sk-text { flex: 1; }
+.sk-sym.gelb { color: #d97706; }
+.mini-schalter { display: inline-flex; background: var(--feld2); border-radius: 999px; padding: 2px; flex: none; }
+.mini-schalter button { border: 0; background: none; border-radius: 999px; padding: 4px 10px; font-size: .8rem; color: var(--leise); }
+.mini-schalter.lage-aus button:first-child { background: var(--karte); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.mini-schalter.lage-an button:last-child { background: var(--akzent); color: #fff; }
+.mini-schalter.lage-teils button:last-child { background: var(--akzent-hell); color: var(--akzent-text); }
+.mini-chips { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.mini-chips .chip { min-height: 28px; padding: 2px 10px; font-size: .82rem; }
+.kompakt-zeile select { min-height: 30px; padding: 2px 6px; font-size: .85rem; max-width: 52%; }
+.raster .karte.el.kompakt .heiz-zeile-k { padding-right: 28px; }
+@media (max-width: 759px) {
+  .raster .karte.el.kompakt.g-m:has(.wert-kachel) { grid-column: span 1; }
+  .kompakt-zeile { flex-wrap: wrap; }
+}
+.v-linie2 { fill: none; stroke: var(--leise); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.legende i.gestrichelt { background: none; border-top: 2px dashed var(--leise); height: 0; width: 16px; }
+.wk-wert.klein { font-size: .95rem; font-weight: 500; }
+.kachel.nicht-klickbar { cursor: default; }
+@media (min-width: 760px) { .heiz-kacheln + .kachel-raster, .kachel-raster .kachel.g-m.nicht-klickbar { grid-column: span 3; } }

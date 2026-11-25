@@ -2,7 +2,7 @@
 // PC: am Griff ziehen · Handy: lange drücken und ziehen · Ecke unten rechts = Größe · × = entfernen
 import { h, icon, live, api, melde, dialog, leeren, zahl, de, grad } from './kern.js';
 import { M, S, st, item, lichter, lichtAn, aussenTemp, punktName } from './modell.js';
-import { geraetInhalt, heizInhalt, alleLichterInhalt, hausInhalt, heuteInhalt, raumInhalt, kopf, kipp, wertText, geraetDetail } from './widgets.js';
+import { geraetInhalt, heizInhalt, alleLichterInhalt, hausInhalt, heuteInhalt, raumInhalt, kopf, kipp, wertText, geraetDetail, schaltKachel, kachelSchalten, wertKachel, heizZeile, alleLichterKompakt, hausKompakt, heuteKompakt } from './widgets.js';
 import { befehl } from './kern.js';
 
 const BESONDERE = [
@@ -42,21 +42,38 @@ export function stern(art, ref, groesse = 's') {
 function inhalt(e) {
   const g = e.ref && M.geraete.get(e.ref);
   switch (e.art) {
-    case 'geraet': return g ? live(() => geraetInhalt(g, e.groesse, true)) : fehlt(e);
-    case 'heizung': return g ? live(() => heizInhalt(g, e.groesse)) : fehlt(e);
+    case 'geraet':
+      if (!g) return fehlt(e);
+      if (e.groesse === 's' && schaltbar(g)) return live(() => schaltKachel(g));
+      if (e.groesse === 's' || (e.groesse === 'm' && messend(g))) return live(() => (g.klasse === 'heizung' ? heizZeile(g) : wertKachel(g)));
+      return live(() => geraetInhalt(g, e.groesse, true));
+    case 'heizung':
+      if (!g) return fehlt(e);
+      return e.groesse === 'l' ? live(() => heizInhalt(g, 'l')) : live(() => heizZeile(g));
     case 'raum': { const r = M.raeume.find((x) => x.name === e.ref); return r ? h('a', { class: 'ganz', href: '#/raeume/' + encodeURIComponent(r.name) }, live(() => raumInhalt(r))) : fehlt(e); }
     case 'punkt': {
       const i = item(e.ref); if (!i) return fehlt(e);
       const geraetName = [...M.geraete.values()].find((x) => x.alle.includes(i.name));
       return live(() => kopf(punktName(i), geraetName ? geraetName.label : '', i.type === 'Switch' && !i.readOnly ? kipp(st(i.name) === 'ON', (x) => befehl(i.name, x ? 'ON' : 'OFF'), punktName(i)) : h('span', { class: 'gross' }, wertText(i))));
     }
-    case 'alleLichter': return live(() => alleLichterInhalt());
-    case 'haus': return live(() => hausInhalt());
-    case 'heuteAnders': return live(() => heuteInhalt(() => neuZeichnen()));
+    case 'alleLichter': return live(() => alleLichterKompakt());
+    case 'haus': return live(() => hausKompakt());
+    case 'heuteAnders': return live(() => heuteKompakt(() => neuZeichnen()));
     case 'titel': return h('h2', { class: 'start-titel', title: 'Doppelklick zum Umbenennen' }, e.text || 'Abschnitt');
     default: return fehlt(e);
   }
 }
+/** Stern und (für Admins) Stift oben in der Detailansicht */
+export function detailExtras(g) {
+  const art = g.klasse === 'heizung' ? 'heizung' : 'geraet';
+  const groesse = g.klasse === 'heizung' || ['sensor', 'raumthermostat'].includes(g.klasse) ? 'm' : 's';
+  return [S.ich.benutzer.rolle === 'admin' && window.zuhauseUmbenennen ? h('button', { class: 'stern', title: 'Name, Raum und Art ändern', onclick: () => window.zuhauseUmbenennen(g) }, icon('stift', 16)) : null, stern(art, g.name, groesse)];
+}
+/** auf der Startseite als Schalt-Kachel: Lampen und schaltbare Geräte */
+const schaltbar = (g) => (g.klasse === 'licht' && (g.p.schalter || g.p.dimmer || g.p.farbe)) || (g.klasse !== 'heizung' && g.p.schalter && g.klasse !== 'zaehler');
+/** kompakte Darstellung (ohne Kartenrahmen-Inhalt wie Kopfzeile) */
+const messend = (g) => ['sensor', 'raumthermostat', 'zaehler', 'sonst'].includes(g.klasse) && !g.p.schalter;
+const kompakt = (e, g) => g && ((e.art === 'geraet' && (e.groesse === 's' || (e.groesse === 'm' && messend(g)))) || (e.art === 'heizung' && e.groesse !== 'l'));
 const fehlt = (e) => h('div', { class: 'leise' }, '„' + (e.ref || e.art) + '“ gibt es in openHAB nicht mehr.');
 
 // ------------------------------------------------------------------ Seite
@@ -100,12 +117,17 @@ function karte(e) {
   if (e.art !== 'titel') k.append(ecke);
   // Antippen (nicht auf Schalter/Regler) öffnet die Detailansicht mit Verlauf
   const g = (e.art === 'geraet' || e.art === 'heizung') && M.geraete.get(e.ref);
+  if (['alleLichter', 'haus', 'heuteAnders'].includes(e.art)) k.classList.add('kompakt');
   if (g) {
+    if (kompakt(e, g)) k.classList.add('kompakt');
+    const schalter = e.art === 'geraet' && e.groesse === 's' && schaltbar(g);
     k.classList.add('oeffnet');
     k.addEventListener('click', (ev) => {
       if (Date.now() - zuletztGezogen < 400 || ev.target.closest('button,input,select,a,label,.ecke,.griff,.weg,.drei')) return;
-      geraetDetail(g);
+      if (schalter) kachelSchalten(g); else geraetDetail(g, detailExtras(g));   // Schalt-Kachel: antippen schaltet
     });
+    // Rechtsklick (PC) öffnet bei Schalt-Kacheln die Details mit Helligkeit, Stimmungen und Verlauf
+    if (schalter) k.addEventListener('contextmenu', (ev) => { if (ziehen) return; ev.preventDefault(); geraetDetail(g, detailExtras(g)); });
   }
   if (e.art === 'titel') {
     k.classList.add('titel-el');
@@ -198,14 +220,13 @@ async function beiEnde(ev) {
 function groesseStart(ev, k, e) {
   const r = k.getBoundingClientRect();
   const spalten = getComputedStyle(raster).gridTemplateColumns.split(' ').length;
-  const spaltB = (raster.clientWidth - (spalten - 1) * 14) / spalten;
-  const zeileH = parseFloat(getComputedStyle(raster).gridAutoRows) || 120;
-  const x0 = ev.clientX, y0 = ev.clientY, alt = e.groesse;
+  const spaltB = (raster.clientWidth - (spalten - 1) * 10) / spalten;
+  const x0 = ev.clientX, alt = e.groesse;
   k.classList.add('groesse-aendern');
   const mv = (m) => {
-    const w = r.width + m.clientX - x0, hh = r.height + m.clientY - y0;
-    const breit = w > spaltB * 1.45; const hoch = hh > zeileH * 1.6;
-    const g = !breit ? 's' : hoch ? 'l' : 'm';
+    const w = r.width + m.clientX - x0;
+    const n = Math.max(1, Math.round((w + 10) / (spaltB + 10)));   // belegte Spalten: 1 = klein, 2 = mittel, ab 3 = groß
+    const g = n <= 1 ? 's' : n === 2 ? 'm' : 'l';
     if (g !== e.groesse) { e.groesse = g; k.className = k.className.replace(/\bg-[sml]\b/, 'g-' + g); }
   };
   const up = async () => {

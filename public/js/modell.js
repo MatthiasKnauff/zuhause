@@ -104,7 +104,9 @@ const GERAETE_NAMEN = [
   [/^FRITZ!?DECT ?200$/i, 'FRITZ!DECT-Steckdose'],
   [/^BitShake Stromz(ä|a)hler$/i, 'Stromzähler'],
   [/^Eco[ _-]?Taster$/i, 'Eco-Taster (Heizung)'],
-  [/^Außensensor$/i, 'Außenfühler'],
+  [/^Außensensor$/i, 'Außen'],
+  [/^Spiegelei$/i, 'Wandlampe Diele'],
+  [/^Balkon[ -]?Kugel$/i, 'Balkonkugel'],
   [/^Klimasensor (.+)$/i, 'Raumthermostat $1'],
 ];
 /** Geräte, deren Art sich aus openHAB nicht ablesen lässt (London hängt an einer Steckdose, ist aber eine Lampe) */

@@ -84,13 +84,13 @@ export function melde(text, fehler = false) {
 }
 
 // ------------------------------------------------------------------ Dialog
-export function dialog(titel, inhalt, { knoepfe = [], breit = false, beimSchliessen } = {}) {
+export function dialog(titel, inhalt, { knoepfe = [], breit = false, beimSchliessen, extras = [] } = {}) {
   const d = h('dialog', { class: 'dialog' + (breit ? ' breit' : '') });
   const zu = () => { d.close(); };
   d.addEventListener('close', () => { d.remove(); if (beimSchliessen) beimSchliessen(); });
   d.addEventListener('click', (e) => { if (e.target === d) zu(); });
   d.append(...[
-    h('div', { class: 'dialog-kopf' }, h('h2', null, titel), h('button', { class: 'rund', 'aria-label': 'Schließen', onclick: zu }, icon('schliessen', 16))),
+    h('div', { class: 'dialog-kopf' }, h('h2', null, titel), h('span', { class: 'dialog-extras' }, extras.filter(Boolean), h('button', { class: 'rund', 'aria-label': 'Schließen', onclick: zu }, icon('schliessen', 16)))),
     h('div', { class: 'dialog-inhalt' }, inhalt),
     knoepfe.length ? h('div', { class: 'dialog-fuss' }, knoepfe.map((k) => h('button', { class: k.klasse || 'knopf', onclick: async () => { try { const r = await k.aktion(); if (r !== false) zu(); } catch (e) { melde(e.message, true); } } }, k.text))) : null,
   ].filter(Boolean));
@@ -193,18 +193,25 @@ export function kelvinCss(k) {
 
 // ------------------------------------------------------------------ Verlauf als kleines Liniendiagramm (SVG, ohne Bibliothek)
 /** punkte: [[zeitMs, wert], …]; klein = nur Linie (Sparkline), sonst mit Achsen, Min/Max und Zeitmarken */
-export function verlaufBild(punkte, { einheit = '', klein = false, stellen = 1, breite = 600 } = {}) {
+export function verlaufBild(punkte, { einheit = '', klein = false, stellen = 1, breite = 600, zweite = null } = {}) {
   // Zeichenfläche in echten Pixeln der Box, damit die Schrift am Handy und am großen Bildschirm gleich groß bleibt
   const B = Math.max(260, Math.round(breite)), H = klein ? 60 : Math.round(Math.min(240, Math.max(170, B * 0.32))), L = klein ? 0 : 44, R = klein ? 0 : 8, O = klein ? 4 : 10, U = klein ? 4 : 24;
   const svg = h('svg:svg', { viewBox: `0 0 ${B} ${H}`, class: 'verlauf' + (klein ? ' klein' : ''), preserveAspectRatio: klein ? 'none' : 'xMidYMid meet', role: 'img' });
   if (!punkte || punkte.length < 2) { if (!klein) svg.append(h('svg:text', { x: B / 2, y: H / 2, 'text-anchor': 'middle', class: 'v-text' }, 'Kein Verlauf gespeichert')); return svg; }
   const t0 = punkte[0][0], t1 = punkte[punkte.length - 1][0];
-  let min = Math.min(...punkte.map((p) => p[1])), max = Math.max(...punkte.map((p) => p[1]));
+  const alleW = punkte.concat(zweite || []).map((p) => p[1]);
+  let min = Math.min(...alleW), max = Math.max(...alleW);
   if (max - min < 0.5) { max += 0.25; min -= 0.25; }
   const x = (t) => L + (t - t0) / (t1 - t0 || 1) * (B - L - R);
   const y = (v) => O + (1 - (v - min) / (max - min)) * (H - O - U);
   const linie = punkte.map(([t, v], i) => (i ? 'L' : 'M') + x(t).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
   svg.append(h('svg:path', { d: linie + ` L ${x(t1).toFixed(1)} ${H - U} L ${x(t0).toFixed(1)} ${H - U} Z`, class: 'v-flaeche' }), h('svg:path', { d: linie, class: 'v-linie', 'vector-effect': 'non-scaling-stroke' }));
+  // zweite Linie (z. B. Soll zur Ist-Temperatur) als Treppe, gestrichelt
+  if (zweite && zweite.length > 1) {
+    const z = zweite.filter(([t]) => t >= t0 && t <= t1);
+    const d = z.map(([t, v], i) => (i ? 'H' + x(t).toFixed(1) + ' V' : 'M' + x(t).toFixed(1) + ' ') + y(v).toFixed(1)).join(' ') + (z.length ? ' H' + x(t1).toFixed(1) : '');
+    svg.append(h('svg:path', { d, class: 'v-linie2', 'vector-effect': 'non-scaling-stroke' }));
+  }
   if (klein) return svg;
   for (const v of [min, (min + max) / 2, max]) {
     svg.append(h('svg:line', { x1: L, x2: B - R, y1: y(v), y2: y(v), class: 'v-gitter', 'vector-effect': 'non-scaling-stroke' }),

@@ -1,7 +1,8 @@
 // Heizung: Haus-Modus, Heute anders, Feiertage, Vorlagen, Woche, alle Räume (Kanten mit der Maus ziehen), Urlaub
 import { h, icon, api, melde, dialog, leeren, live, de, zuMin, zuHHMM, TAGE, TAGKURZ, TAGLANG, datumKurz, zeit } from './kern.js';
-import { M, S, st, planRaum, ohneUmlaut } from './modell.js';
-import { hausInhalt, heizInhalt } from './widgets.js';
+import { M, S, st, planRaum, ohneUmlaut, maxTeile, teilName } from './modell.js';
+import { hausInhalt, hausKompakt, heizInhalt, verlaufBox, wertText } from './widgets.js';
+import { kachel } from './seiten.js';
 import { stern } from './start.js';
 
 let ziel = null;
@@ -17,8 +18,11 @@ async function aendern(pfad, methode, koerper, text) {
   zeichnen();
 }
 
-export async function heizungSeite(z) {
-  ziel = z;
+// Reiter wie in der MAX!-Heizungs-App: Räume · Wochenplan · Urlaub · Verlauf · Geräte
+const REITER = [['raeume', 'Räume'], ['plan', 'Wochenplan'], ['urlaub', 'Urlaub'], ['verlauf', 'Verlauf'], ['geraete', 'Geräte']];
+let reiter = 'raeume';
+export async function heizungSeite(z, arg) {
+  ziel = z; if (REITER.some(([id]) => id === arg)) reiter = arg;
   try { await laden(); } catch (e) { leeren(z, h('p', { class: 'fehlerbox' }, e.message)); return; }
   zeichnen();
 }
@@ -33,17 +37,15 @@ function zeichnen() {
       h('p', null, 'In openHAB fehlt das Item „Heizplan_Daten“ oder die Regel heizplan.js läuft noch nicht. Die Raumthermostate kannst du trotzdem bedienen:')), raumKarten());
     return;
   }
-  leeren(ziel,
-    h('div', { class: 'seitenkopf' }, h('div', null, h('h1', null, 'Heizung · Wochenplan'), statusZeile())),
-    h('div', { class: 'heiz-oben' },
-      h('div', { class: 'karte' }, live(() => hausInhalt())),
-      heuteKarte(),
-      feiertagKarte()),
-    vorlagenKarte(),
-    wocheKarte(),
-    rasterKarte(),
-    h('div', { class: 'heiz-unten' }, urlaubKarte(), istAdmin() ? einstellKarte() : null),
-    h('h2', { class: 'abschnitt' }, 'Räume jetzt'), raumKarten());
+  const kopf = h('div', { class: 'seitenkopf kompakt' }, h('div', null, h('h1', null, 'Heizung'), statusZeile()));
+  const tabs = h('nav', { class: 'reiter', 'aria-label': 'Heizung' }, REITER.map(([id, n]) => h('a', { href: '#/heizung/' + id, class: id === reiter ? 'aktiv' : '' }, n)));
+  let inhalt;
+  if (reiter === 'plan') inhalt = [h('div', { class: 'heiz-oben' }, heuteKarte(), feiertagKarte()), vorlagenKarte(), wocheKarte(), rasterKarte()];
+  else if (reiter === 'urlaub') inhalt = [h('div', { class: 'heiz-unten' }, urlaubKarte(), istAdmin() ? einstellKarte() : null)];
+  else if (reiter === 'verlauf') inhalt = [verlaufTab()];
+  else if (reiter === 'geraete') inhalt = [geraeteTab()];
+  else inhalt = [h('div', { class: 'kachel-raster' }, h('div', { class: 'kachel g-m nicht-klickbar' }, live(() => hausKompakt()))), h('div', { class: 'kachel-raster heiz-kacheln' }, [...M.geraete.values()].filter((g) => g.klasse === 'heizung').map(kachel))];
+  leeren(ziel, kopf, tabs, inhalt);
   window.scrollTo(0, y);
 }
 
@@ -323,6 +325,27 @@ function einstellKarte() {
   return h('div', { class: 'karte' }, h('div', { class: 'k-kopf' }, h('div', { class: 'k-titel' }, h('div', { class: 'k-name' }, 'Ganzes Haus – Temperaturen'), h('div', { class: 'k-unter' }, 'für die Knöpfe Eco und Komfort'))), f('eco', 'Eco'), f('komfort', 'Komfort'));
 }
 
+/** Verlauf: je Raum Ist und Soll (7 Tage) */
+function verlaufTab() {
+  const hz = [...M.geraete.values()].filter((g) => g.klasse === 'heizung' && g.p.temp);
+  return h('div', { class: 'verlauf-raster' }, hz.map((g) => h('div', { class: 'karte' }, verlaufBox(g.p.temp, M.raumName(g.raum) || g.label, g.p.soll))));
+}
+/** Geräte: alle MAX!-Teile je Raum mit Batterie, Ventil, Modus, Fenster */
+function geraeteTab() {
+  const hz = [...M.geraete.values()].filter((g) => g.klasse === 'heizung');
+  return h('div', { class: 'max-raster' }, hz.map((g) => {
+    const teile = [...new Set(Object.values(g.teilVon || {}).filter(Boolean))].sort();
+    return h('div', { class: 'karte' }, h('div', { class: 'k-kopf' }, h('div', { class: 'k-titel' }, h('div', { class: 'k-name' }, M.raumName(g.raum) || g.label), h('div', { class: 'k-unter' }, maxTeile(g)))),
+      live(() => h('div', { class: 'liste-werte' }, teile.map((t) => {
+        const werte = g.alle.filter((n) => g.teilVon[n] === t).map((n) => M.items.get(n)).filter(Boolean);
+        const finde = (re) => werte.find((i) => re.test(i.label + ' ' + i.name));
+        const bat = werte.find((i) => i.tags.includes('LowBattery'));
+        const info = [finde(/ventil/i), finde(/modus/i), finde(/fenster|tür/i), finde(/^((?!soll).)*temperatur/i)].filter(Boolean).map((i) => wertText(i));
+        return h('div', { class: 'wertzeile' }, h('span', null, h('b', null, teilName(t)), h('br'), h('small', { class: 'leise' }, info.join(' · '))),
+          h('span', { class: bat && st(bat.name) === 'ON' ? 'warnung' : 'leise' }, bat ? (st(bat.name) === 'ON' ? '⚠ Batterie' : 'Batterie ok') : ''));
+      }))));
+  }));
+}
 function raumKarten() {
   const hz = [...M.geraete.values()].filter((g) => g.klasse === 'heizung');
   return h('div', { class: 'karten-raster' }, hz.map((g) => h('div', { class: 'karte' }, h('div', { class: 'karte-ecke' }, stern('heizung', g.name, 'm')), live(() => heizInhalt(g, 'l')))));

@@ -30,7 +30,7 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
 
   // Licht schalten (Stehlampe ist im Mock an)
   const vorher = await p.evaluate(() => fetch('/api/items').then((r) => r.json()).then((l) => l.find((i) => i.name === 'LED_Wohnzimmer_eWeLight_Helligkeit').state));
-  await p.locator('.raster .karte.el', { hasText: 'LED Wohnzimmer' }).locator('.kipp').first().click();
+  await p.locator('.raster .karte.el', { hasText: 'LED Wohnzimmer' }).first().click();
   await p.waitForTimeout(700);
   const nachher = await p.evaluate(() => fetch('/api/items').then((r) => r.json()).then((l) => l.find((i) => i.name === 'LED_Wohnzimmer_eWeLight_Helligkeit').state));
   pruefe(vorher !== nachher, `Lampe geschaltet (${vorher} → ${nachher}), Anzeige live`);
@@ -68,7 +68,7 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   pruefe(ids.indexOf(id0) > 0, 'Verschieben am Griff ändert die Reihenfolge (jetzt Platz ' + (ids.indexOf(id0) + 1) + ')');
 
   // Größe an der Ecke: ein kleines Element groß ziehen
-  const klein = p.locator('.raster .karte.el.g-s').first();
+  const klein = p.locator('.raster .karte.el.g-s:not(.titel-el)').first();
   const kid = await klein.getAttribute('data-id');
   await klein.hover(); const eb = await klein.locator('.ecke').boundingBox();
   await p.mouse.move(eb.x + 8, eb.y + 8); await p.mouse.down(); await p.mouse.move(eb.x + 300, eb.y + 200, { steps: 10 }); await p.mouse.up(); await p.waitForTimeout(500);
@@ -79,8 +79,8 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   pruefe(JSON.stringify(ids2) === JSON.stringify(await p.locator('.raster .karte.el').evaluateAll((l) => l.map((x) => x.dataset.id))) && ids2.includes(kid), 'Startseite bleibt nach Neuladen erhalten');
   await p.screenshot({ path: ordner + '/pc-start-geaendert.png', fullPage: true });
 
-  // Detailansicht mit Verlauf: Außenfühler auf der Startseite antippen
-  await p.locator('.raster .karte.el', { hasText: 'Außenfühler' }).first().locator('.k-name').click();
+  // Detailansicht mit Verlauf: Außen auf der Startseite antippen
+  await p.locator('.raster .karte.el', { hasText: 'Außen' }).first().click();
   await p.waitForSelector('dialog .verlauf-box svg .v-linie', { timeout: 5000 }).catch(() => {});
   pruefe(await p.locator('dialog .verlauf-box svg .v-linie').count() >= 1, 'Antippen zeigt Details mit Verlauf');
   await p.locator('dialog .chip', { hasText: '7 Tage' }).first().click(); await p.waitForTimeout(600);
@@ -91,7 +91,9 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   pruefe(await p.locator('.raum-chips .chip').count() >= 7, 'Räume aus dem Modell (' + await p.locator('.raum-chips .chip').count() + ')');
   await p.screenshot({ path: ordner + '/pc-raum.png', fullPage: true });
   await p.click('.raum-chips .chip:has-text("Diele")'); await p.waitForTimeout(400);
-  pruefe(await p.locator('.stimmung').count() >= 6, 'Wandlampe zeigt Lichtstimmungen');
+  await p.screenshot({ path: ordner + '/pc-diele-kacheln.png', fullPage: true });
+  await p.locator('.kachel', { hasText: 'Wandlampe' }).first().click({ button: 'right' }); await p.waitForTimeout(500);
+  pruefe(await p.locator('dialog .stimmung').count() >= 6, 'Rechtsklick auf die Wandlampe zeigt die Lichtstimmungen');
   await p.locator('.stimmung', { hasText: 'Abendrot' }).first().click(); await p.waitForTimeout(500);
   const farbe = await p.evaluate(() => fetch('/api/items').then((r) => r.json()).then((l) => l.find((i) => i.name === 'Spiegelei_Paulmann_Licht_GmbH_Farbe').state));
   pruefe(farbe === '18,70,55', 'Stimmung Abendrot sendet 18,70,55 (ist ' + farbe + ')');
@@ -105,17 +107,23 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   pruefe(lampen.Spiegelei_Paulmann_Licht_GmbH && lampen.Spiegelei_Paulmann_Licht_GmbH.abendrot === '10,70,55', 'Abgleich gespeichert: Abendrot = ' + JSON.stringify(lampen.Spiegelei_Paulmann_Licht_GmbH && lampen.Spiegelei_Paulmann_Licht_GmbH.abendrot));
 
   // Heizung
-  await p.click('.nav-oben a[data-seite=heizung]'); await p.waitForSelector('.wr'); await p.waitForTimeout(400);
+  await p.keyboard.press('Escape');
+  await p.click('.nav-oben a[data-seite=heizung]'); await p.waitForSelector('.reiter'); await p.waitForTimeout(400);
+  await p.screenshot({ path: ordner + '/pc-heizung-raeume.png', fullPage: true });
+  for (const t of ['verlauf', 'geraete', 'urlaub']) { await p.click(`.reiter a[href="#/heizung/${t}"]`); await p.waitForTimeout(900); await p.screenshot({ path: `${ordner}/pc-heizung-${t}.png`, fullPage: true }); }
+  await p.click('.reiter a[href="#/heizung/plan"]'); await p.waitForSelector('.wr'); await p.waitForTimeout(400);
   await p.screenshot({ path: ordner + '/pc-heizung.png', fullPage: true });
   const vorlagen = await p.locator('.vorlage:not(.neu)').count();
   pruefe(vorlagen >= 3, 'Heizung: ' + vorlagen + ' Vorlagen');
   // Vorlage „Wochenende“ auf Mittwoch ziehen
-  const vw = p.locator('.vorlage', { hasText: 'Wochenende' }).first(); const mi = p.locator('.tag[data-tag=mi]');
+  // Ziel: ein Werktag, der nicht heute ist (sonst würde „Heute anders“ unten nichts ändern)
+  const zielTag = ['mo', 'di', 'mi', 'do', 'fr'].filter((t, i) => i !== (new Date().getDay() + 6) % 7)[0];
+  const vw = p.locator('.vorlage', { hasText: 'Wochenende' }).first(); const mi = p.locator(`.tag[data-tag=${zielTag}]`);
   const vb = await vw.boundingBox(); const mb = await mi.boundingBox();
   await p.mouse.move(vb.x + 40, vb.y + 15); await p.mouse.down(); await p.mouse.move(mb.x + 30, mb.y + 30, { steps: 12 }); await p.mouse.up(); await p.waitForTimeout(800);
-  const woche = await p.evaluate(() => fetch('/api/heizung').then((r) => r.json()).then((h) => h.daten.woche.mi));
+  const woche = await p.evaluate((t) => fetch('/api/heizung').then((r) => r.json()).then((h) => h.daten.woche[t]), zielTag);
   const wid = await p.evaluate(() => fetch('/api/heizung').then((r) => r.json()).then((h) => h.daten.vorlagen.find((v) => v.name === 'Wochenende').id));
-  pruefe(woche === wid, 'Vorlage auf Mittwoch gezogen');
+  pruefe(woche === wid, 'Vorlage auf ' + zielTag + ' gezogen');
   // Kante ziehen: erste Zeile, Montag-Spalte (Index aus effektiv), rechte Kante des ersten Blocks um ~1 h nach rechts
   const block = p.locator('.wr-zeile:not(.wr-kopf):not(.wr-uhr)').first().locator('.wr-zelle').first().locator('.wr-block').first();
   const vorherPlan = await p.evaluate(() => fetch('/api/heizung').then((r) => r.json()).then((h) => JSON.stringify(h.daten.vorlagen)));
@@ -133,6 +141,7 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   await p.locator('.heiz-oben .karte', { hasText: 'Heute anders' }).locator('.chip', { hasText: 'Wochenende' }).click(); await p.waitForTimeout(600);
   pruefe((await p.locator('.heiz-oben .karte', { hasText: 'Heute anders' }).textContent()).includes('morgen gilt wieder'), 'Heute anders gesetzt');
   // Urlaub
+  await p.click('.reiter a[href="#/heizung/urlaub"]'); await p.waitForTimeout(500);
   await p.click('button:has-text("Urlaub starten")'); await p.waitForTimeout(600);
   const befehl = await p.evaluate(() => fetch('/api/items').then((r) => r.json()).then((l) => l.find((i) => i.name === 'Heizplan_Befehl').state));
   pruefe(/^urlaub\|\d{4}-\d\d-\d\dT18:00\|15\|/.test(befehl), 'Urlaub-Befehl an die Regel: ' + befehl);
@@ -165,13 +174,16 @@ const pruefe = (b, text) => { if (!b) { fehler.push(text); console.log('✗ ' + 
   pruefe(!(await q.isVisible('.nav-oben')), 'iPhone: keine Navigation oben');
   await q.screenshot({ path: ordner + '/handy-start.png', fullPage: true });
   // Alle Lichter: rechts = alle an
-  await q.locator('.drei-an').first().tap(); await q.waitForTimeout(800);
-  pruefe((await q.locator('.alle-lichter .k-unter').first().textContent()).match(/^(\d+) von \1 an/), 'Alle Lichter an: ' + (await q.locator('.alle-lichter .k-unter').first().textContent()));
+  await q.locator('.mini-schalter button[aria-label="Alle an"]').first().tap(); await q.waitForTimeout(800);
+  const anText = await q.locator('.kompakt-zeile', { hasText: 'Alle Lichter' }).locator('.sk-unter').first().textContent();
+  pruefe(/^(\d+) von \1 an/.test(anText), 'Alle Lichter an: ' + anText);
   await q.locator('.nav-unten a[data-seite=raeume]').tap(); await q.waitForTimeout(500);
   await q.screenshot({ path: ordner + '/handy-raum.png', fullPage: true });
   // Stern: Tüte auf die Handy-Startseite
-  await q.goto(basis + '/#/raeume/Arbeitszimmer'); await q.waitForTimeout(500); await q.locator('.karte.geraet', { hasText: 'FRITZ!DECT' }).locator('.stern').last().tap(); await q.waitForTimeout(500);
-  await q.locator('.nav-unten a[data-seite=heizung]').tap(); await q.waitForSelector('.wr'); await q.waitForTimeout(400);
+  await q.goto(basis + '/#/raeume/Arbeitszimmer'); await q.waitForTimeout(500); await q.locator('.kachel', { hasText: 'FRITZ!DECT' }).first().click({ button: 'right' }); await q.waitForTimeout(500); await q.locator('dialog .dialog-extras .stern').last().tap(); await q.waitForTimeout(500); await q.locator('dialog .dialog-kopf button[aria-label=Schließen]').tap(); await q.waitForTimeout(300);
+  await q.locator('.nav-unten a[data-seite=heizung]').tap(); await q.waitForSelector('.reiter'); await q.waitForTimeout(400);
+  await q.screenshot({ path: ordner + '/handy-heizung-raeume.png', fullPage: true });
+  await q.locator('.reiter a[href="#/heizung/plan"]').tap(); await q.waitForSelector('.wr'); await q.waitForTimeout(400);
   await q.screenshot({ path: ordner + '/handy-heizung.png', fullPage: true });
   await q.locator('.nav-unten button[data-seite=mehr]').tap(); await q.waitForTimeout(300);
   await q.screenshot({ path: ordner + '/handy-mehr.png' });

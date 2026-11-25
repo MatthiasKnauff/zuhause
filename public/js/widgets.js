@@ -360,7 +360,7 @@ export function sparkline(i) {
   return box;
 }
 /** Diagramm mit Umschalter 24 h / 7 Tage / 30 Tage */
-export function verlaufBox(i, titel) {
+export function verlaufBox(i, titel, zweitItem = null) {
   const box = h('div', { class: 'verlauf-box' });
   const bild = h('div'); const zahlen = h('div', { class: 'verlauf-zahlen' });
   const e = einheitVon(i);
@@ -369,24 +369,102 @@ export function verlaufBox(i, titel) {
     leeren(bild, h('div', { class: 'leise klein' }, 'Verlauf wird geladen …'));
     try {
       const d = await verlaufLaden(i.name, stunden);
-      leeren(bild, verlaufBild(d.punkte, { einheit: e, stellen: e === 'W' ? 0 : 1, breite: bild.clientWidth || 600 }));
+      const d2 = zweitItem ? await verlaufLaden(zweitItem.name, stunden).catch(() => null) : null;
+      leeren(bild, verlaufBild(d.punkte, { einheit: e, stellen: e === 'W' ? 0 : 1, breite: bild.clientWidth || 600, zweite: d2 && d2.punkte }));
       const w = d.punkte.map((p) => p[1]);
       leeren(zahlen, w.length ? [h('span', null, 'min ' + de(Math.min(...w), e === 'W' ? 0 : 1) + ' ' + e), h('span', null, 'Ø ' + de(w.reduce((s, x) => s + x, 0) / w.length, e === 'W' ? 0 : 1) + ' ' + e), h('span', null, 'max ' + de(Math.max(...w), e === 'W' ? 0 : 1) + ' ' + e)] : []);
     } catch (x) { leeren(bild, h('div', { class: 'leise klein' }, x.message)); leeren(zahlen); }
     for (const b of knoepfe.querySelectorAll('.chip')) b.classList.toggle('aktiv', Number(b.dataset.h) === stunden);
   };
   const knoepfe = h('div', { class: 'chips' }, [[24, '24 Std.'], [168, '7 Tage'], [720, '30 Tage']].map(([s, n]) => h('button', { class: 'chip', dataset: { h: s }, onclick: () => { stunden = s; zeige(); } }, n)));
-  box.append(h('div', { class: 'verlauf-kopf' }, h('b', null, titel || punktName(i)), knoepfe), bild, zahlen);
+  box.append(h('div', { class: 'verlauf-kopf' }, h('b', null, titel || punktName(i)), knoepfe), bild,
+    zweitItem ? h('div', { class: 'legende leise klein' }, h('span', null, h('i', { style: { background: 'var(--akzent)' } }), 'Ist'), h('span', null, h('i', { class: 'gestrichelt' }), 'Soll')) : null, zahlen);
   zeige();
   return box;
 }
 /** Detailansicht eines Geräts: volle Bedienung, Verlauf, alle Werte */
-export function geraetDetail(g) {
+export function geraetDetail(g, extras = []) {
   const vi = verlaufItem(g);
   const inhalt = h('div', null,
     live(() => geraetInhalt(g, 'voll', true)),
-    vi ? verlaufBox(vi) : null,
-    g.klasse === 'heizung' && g.p.soll ? verlaufBox(g.p.soll, 'Soll-Temperatur') : null,
+    vi ? verlaufBox(vi, g.klasse === 'heizung' ? 'Temperatur' : null, g.klasse === 'heizung' ? g.p.soll : null) : null,
     g.alle.length > 1 ? h('details', { class: 'detail-werte' }, h('summary', { class: 'leise' }, 'Alle Werte (' + g.alle.length + ')'), live(() => alleWerte(g))) : null);
-  dialog(g.label, inhalt, { breit: true });
+  dialog(g.label, inhalt, { breit: true, extras });
+}
+
+// ------------------------------------------------------------------ Kompakte Kacheln (Startseite, aufgeräumt wie die Übersicht)
+/** Schaltbare Kachel: Symbol + Name, die ganze Kachel schaltet (Licht gelb, Gerät grün) */
+export function schaltKachel(g) {
+  const licht = g.klasse === 'licht';
+  const an = licht ? lichtAn(g) : g.p.schalter && st(g.p.schalter.name) === 'ON';
+  const hell = licht ? helligkeit(g) : NaN;
+  const unter = an ? (licht && Number.isFinite(hell) && hell < 100 ? de(hell, 0) + ' %' : !licht && g.p.leistung ? wertText(g.p.leistung) : '') : '';
+  return h('div', { class: 'schalt-kachel ' + (licht ? 'k-licht' : 'k-geraet') + (an ? ' an' : ''), role: 'button', 'aria-pressed': an ? 'true' : 'false' },
+    h('span', { class: 'sk-sym' }, icon(licht ? 'licht' : 'stecker', 18)),
+    h('span', { class: 'sk-text' }, h('span', { class: 'sk-name' }, g.label), unter ? h('span', { class: 'sk-unter' }, unter) : null));
+}
+export function kachelSchalten(g) {
+  if (g.klasse === 'licht') return sendeLicht(g, !lichtAn(g));
+  if (g.p.schalter) return befehl(g.p.schalter.name, st(g.p.schalter.name) === 'ON' ? 'OFF' : 'ON');
+}
+/** Messwert-Kachel: kleiner Name, großer Wert, darunter Feuchte bzw. Zählerstand */
+export function wertKachel(g) {
+  const p = g.p;
+  const haupt = p.temp || p.leistung || p.feuchte || p.energie;
+  const neben = haupt === p.temp ? p.feuchte : haupt === p.leistung ? p.energie : null;
+  const titel = (g.klasse === 'raumthermostat' || g.klasse === 'sensor') && g.raum && !g.raum.startsWith('zh:') && /thermostat|klima|sensor/i.test(g.label) ? M.raumName(g.raum) : g.label;
+  return h('div', { class: 'wert-kachel' },
+    h('div', { class: 'wk-name' }, titel),
+    h('div', { class: 'wk-wert' + (haupt ? '' : ' klein') }, haupt ? wertText(haupt) : (p.batterie.length ? (p.batterie.some((b) => st(b.name) === 'ON') ? '⚠ Batterie' : 'Batterie ok') : '–')),
+    neben ? h('div', { class: 'wk-unter' }, (neben === p.feuchte ? 'Feuchte ' : 'Zähler ') + wertText(neben)) : null);
+}
+/** Heizung als eine Zeile: Raum, Ist · Ventile links – Soll mit − und + rechts */
+export function heizZeile(g) {
+  const p = g.p;
+  const ist = p.temp ? zahl(st(p.temp.name)) : NaN;
+  const soll = p.soll ? zahl(st(p.soll.name)) : NaN;
+  const ventile = (p.ventile || []).map((v) => zahl(st(v.name))).filter(Number.isFinite);
+  const fensterAuf = p.fenster && st(p.fenster.name) === 'OPEN';
+  const stelle = (d) => { if (!p.soll || !Number.isFinite(soll)) return; befehl(p.soll.name, Math.min(30.5, Math.max(4.5, soll + d)) + ' °C'); };
+  return h('div', { class: 'heiz-zeile-k' + (fensterAuf ? ' fenster' : '') },
+    h('div', { class: 'hz-text' }, h('div', { class: 'hz-name' }, g.raum ? M.raumName(g.raum) : g.label),
+      h('div', { class: 'hz-unter' }, [Number.isFinite(ist) ? 'Ist ' + grad(ist) : null, ventile.length ? 'Ventil ' + ventile.map((v) => de(v, 0)).join(' / ') + ' %' : null, fensterAuf ? 'Fenster offen' : null].filter(Boolean).join(' · '))),
+    h('div', { class: 'hz-soll' },
+      h('button', { class: 'hz-knopf kalt', 'aria-label': 'kälter', onclick: (e) => { e.stopPropagation(); stelle(-0.5); } }, '−'),
+      h('span', { class: 'hz-wert' }, Number.isFinite(soll) ? grad(soll) : '–'),
+      h('button', { class: 'hz-knopf warm', 'aria-label': 'wärmer', onclick: (e) => { e.stopPropagation(); stelle(0.5); } }, '+')));
+}
+
+// ------------------------------------------------------------------ Kompakte Sonder-Elemente für die Startseite
+export function alleLichterKompakt() {
+  const alle = lichter();
+  const an = alle.filter((g) => lichtAn(g)).length;
+  const lage = an === 0 ? 'aus' : an === alle.length ? 'an' : 'teils';
+  const setze = (x) => Promise.allSettled(alle.map((g) => sendeLicht(g, x)));
+  return h('div', { class: 'kompakt-zeile' },
+    h('span', { class: 'sk-sym' + (an ? ' gelb' : '') }, icon('licht', 18)),
+    h('span', { class: 'sk-text' }, h('span', { class: 'sk-name' }, 'Alle Lichter'), h('span', { class: 'sk-unter' }, an + ' von ' + alle.length + ' an')),
+    h('span', { class: 'mini-schalter lage-' + lage, role: 'group', 'aria-label': 'Alle Lichter' },
+      h('button', { 'aria-label': 'Alle aus', title: 'Alle aus', onclick: (e) => { e.stopPropagation(); setze(false); } }, 'aus'),
+      h('button', { 'aria-label': 'Alle an', title: 'Alle an', onclick: (e) => { e.stopPropagation(); setze(true); } }, 'an')));
+}
+export function hausKompakt() {
+  const mo = [...M.geraete.values()].filter((g) => g.klasse === 'heizung' && g.p.modus).map((g) => st(g.p.modus.name));
+  const alleAuto = mo.length && mo.every((m) => m === 'AUTOMATIC');
+  const H = S.heizung;
+  return h('div', { class: 'kompakt-zeile' },
+    h('span', { class: 'sk-text' }, h('span', { class: 'sk-name' }, 'Ganzes Haus'), h('span', { class: 'sk-unter' }, alleAuto ? 'Wochenplan' : 'teils manuell')),
+    h('span', { class: 'mini-chips' }, [['eco', 'Eco', H && H.daten ? de(H.daten.eco) + '°' : ''], ['auto', 'Auto', ''], ['komfort', 'Komfort', H && H.daten ? de(H.daten.komfort) + '°' : '']].map(([id, n, t]) =>
+      h('button', { class: 'chip' + (id === 'auto' && alleAuto ? ' aktiv' : ''), title: t, onclick: async (e) => { e.stopPropagation(); try { await api('heizung/haus', 'POST', { modus: id }); melde(n + ' für alle Räume'); } catch (x) { melde(x.message, true); } } }, n))));
+}
+export function heuteKompakt(neuLaden) {
+  const H = S.heizung;
+  if (!H || !H.verfuegbar) return h('div', { class: 'kompakt-zeile' }, h('span', { class: 'sk-name' }, 'Heute anders'), h('span', { class: 'sk-unter' }, 'Heizplan fehlt'));
+  const heute = H.effektiv[0]; const geplant = H.daten.woche[heute.key];
+  const sel = h('select', { 'aria-label': 'Heizung heute', onclick: (e) => e.stopPropagation(), onchange: async (e) => {
+    const v = e.target.value;
+    try { S.heizung = await api('heizung/heute', 'POST', { vorlage: v === geplant ? null : v }); melde(v === geplant ? 'Heute wieder nach Plan' : 'Heute: ' + name(H, v)); neuLaden && neuLaden(); } catch (x) { melde(x.message, true); }
+  } }, H.daten.vorlagen.map((v) => h('option', { value: v.id, selected: heute.vorlage === v.id }, v.name + (v.id === geplant ? ' (Plan)' : ''))));
+  return h('div', { class: 'kompakt-zeile' },
+    h('span', { class: 'sk-text' }, h('span', { class: 'sk-name' }, 'Heizung heute'), h('span', { class: 'sk-unter' }, H.daten.ausnahmen[heute.datum] ? 'anders als geplant · morgen wieder normal' : 'nach Plan')), sel);
 }

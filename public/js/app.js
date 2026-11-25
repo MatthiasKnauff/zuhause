@@ -97,7 +97,7 @@ async function zeigen() {
   try {
     if (id === 'raeume') raeumeSeite(ziel, arg);
     else if (id === 'licht') lichtSeite(ziel);
-    else if (id === 'heizung') await heizungSeite(ziel);
+    else if (id === 'heizung') await heizungSeite(ziel, arg);
     else if (id === 'energie') energieSeite(ziel);
     else if (id === 'geraete') geraeteSeite(ziel);
     else if (id === 'einstellungen') await einstellungenSeite(ziel);

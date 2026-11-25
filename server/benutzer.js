@@ -11,11 +11,11 @@ const t = (id, text) => ({ id, art: 'titel', text, groesse: 's' });
 const g = (id, ref, groesse = 's', art = 'geraet') => ({ id, art, ref, groesse });
 const VORLAGE = (x) => [
   t(x + 't1', 'Klima'),
-  g(x + 'k1', 'Aussentemperatur_LUMI'), g(x + 'k2', 'Thermostat_Schlafzimmer'), g(x + 'k3', 'Termostat_Office__TZE284_wtikaxzs'),
+  g(x + 'k1', 'Aussentemperatur_LUMI', 'm'), g(x + 'k2', 'Thermostat_Schlafzimmer', 'm'), g(x + 'k3', 'Termostat_Office__TZE284_wtikaxzs', 'm'),
   t(x + 't2', 'Heizung'),
   { id: x + 'h0', art: 'haus', groesse: 'm' }, { id: x + 'h9', art: 'heuteAnders', groesse: 'm' },
-  g(x + 'h1', 'Heizung_Wohnzimmer', 's', 'heizung'), g(x + 'h2', 'Heizung_Kueche', 's', 'heizung'), g(x + 'h3', 'Heizung_Arbeitszimmer', 's', 'heizung'),
-  g(x + 'h4', 'Heizung_Schlafzimmer', 's', 'heizung'), g(x + 'h5', 'Heizung_Bad', 's', 'heizung'),
+  g(x + 'h1', 'Heizung_Wohnzimmer', 'm', 'heizung'), g(x + 'h2', 'Heizung_Kueche', 'm', 'heizung'), g(x + 'h3', 'Heizung_Arbeitszimmer', 'm', 'heizung'),
+  g(x + 'h4', 'Heizung_Schlafzimmer', 'm', 'heizung'), g(x + 'h5', 'Heizung_Bad', 'm', 'heizung'),
   t(x + 't3', 'Licht'),
   { id: x + 'l0', art: 'alleLichter', groesse: 'm' },
   ...['Spiegelei_Paulmann_Licht_GmbH', 'Schreibtischlampe_shellyplugs5adcfc192168179218', 'Stehlampe_shelly18caab55fc066192168179203', 'LED_Wohnzimmer_eWeLight',

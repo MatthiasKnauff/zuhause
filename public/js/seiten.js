@@ -1,28 +1,51 @@
 // Seiten: Räume, Licht, Energie, Geräte, Benutzer & Einstellungen
 import { h, icon, api, melde, dialog, leeren, live, zahl, de, grad } from './kern.js';
 import { M, S, st, lichtAn, raumTemp, KLASSEN_WAHL } from './modell.js';
-import { geraetInhalt, alleWerte, alleLichterInhalt, wertText, lichtSchalten, geraetDetail, verlaufBox, verlaufItem } from './widgets.js';
-import { stern } from './start.js';
+import { geraetInhalt, alleWerte, alleLichterInhalt, wertText, lichtSchalten, geraetDetail, verlaufBox, verlaufItem, schaltKachel, kachelSchalten, wertKachel, heizZeile } from './widgets.js';
+import { stern, detailExtras } from './start.js';
 import { darstellungAnwenden } from './app.js';
 
 const KLASSEN = { licht: 'Licht', heizung: 'Heizung (MAX!)', raumthermostat: 'Raumthermostate (nicht MAX!)', steckdose: 'Steckdosen & Schalter', sensor: 'Sensoren', zaehler: 'Zähler', sonst: 'Sonstiges' };
 const ORDNUNG = ['heizung', 'raumthermostat', 'licht', 'steckdose', 'sensor', 'zaehler', 'sonst'];
 
-function geraetKarte(g, { mitRaum = false, alle = false } = {}) {
-  const groesse = g.klasse === 'licht' && (g.p.farbe || g.p.ct) ? 'voll' : g.klasse === 'heizung' ? 'voll' : 'l';
-  const art = g.klasse === 'heizung' ? 'heizung' : 'geraet';
-  const k = h('div', { class: 'karte geraet k-' + g.klasse + (groesse === 'voll' && g.klasse === 'licht' ? ' breit' : '') });
-  const werte = h('div', { class: 'alle-werte', hidden: !alle });
-  k.append(h('div', { class: 'karte-ecke' }, S.ich.benutzer.rolle === 'admin' ? h('button', { class: 'stern', title: 'Name und Raum ändern', 'aria-label': g.label + ': Name und Raum ändern', onclick: (e) => { e.stopPropagation(); umbenennen(g); } }, icon('stift', 16)) : null, stern(art, g.name, g.klasse === 'heizung' || g.p.dimmer || g.p.farbe ? 'm' : 's')),
-    live(() => geraetInhalt(g, groesse, mitRaum)), werte);
-  if (alle && g.alle.length > 1) werte.append(live(() => alleWerte(g)));
-  // Antippen der Karte (nicht der Bedienelemente) öffnet Details mit Verlauf
-  k.classList.add('oeffnet');
-  k.addEventListener('click', (ev) => { if (!ev.target.closest('button,input,select,a,label,details,.drei,.alle-werte')) geraetDetail(g); });
+// ------------------------------------------------------------------ Kompakte Kacheln in Abschnitten (wie die Übersicht)
+const ABSCHNITTE = [
+  ['Klima', (g) => g.klasse === 'sensor' || g.klasse === 'raumthermostat'],
+  ['Heizung', (g) => g.klasse === 'heizung'],
+  ['Licht', (g) => g.klasse === 'licht'],
+  ['Geräte', (g) => g.klasse === 'steckdose' || (g.klasse === 'sonst' && g.p.schalter)],
+  ['Energie', (g) => g.klasse === 'zaehler'],
+  ['Sonstiges', (g) => g.klasse === 'sonst' && !g.p.schalter],
+];
+const schaltbar = (g) => (g.klasse === 'licht' && (g.p.schalter || g.p.dimmer || g.p.farbe)) || (g.klasse !== 'heizung' && g.klasse !== 'zaehler' && !!g.p.schalter);
+/** eine Kachel: Schalter schalten beim Antippen, alles andere öffnet die Details; lange drücken / Rechtsklick = Details */
+export function kachel(g) {
+  const breit = g.klasse === 'heizung' || g.klasse === 'sensor' || g.klasse === 'raumthermostat' || g.klasse === 'zaehler';
+  const k = h('div', { class: 'kachel ' + (breit ? 'g-m' : 'g-s') + ' kl-' + g.klasse, tabindex: 0 });
+  k.append(live(() => (schaltbar(g) ? schaltKachel(g) : g.klasse === 'heizung' ? heizZeile(g) : wertKachel(g))));
+  const details = () => geraetDetail(g, detailExtras(g));
+  let lang = null, langGeoeffnet = false;
+  k.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch' || e.target.closest('button')) return; langGeoeffnet = false; lang = setTimeout(() => { lang = null; langGeoeffnet = true; if (navigator.vibrate) navigator.vibrate(10); details(); }, 500); });
+  for (const t of ['pointerup', 'pointercancel', 'pointermove']) k.addEventListener(t, (e) => { if (lang && (t !== 'pointermove' || Math.abs(e.movementY) + Math.abs(e.movementX) > 4)) { clearTimeout(lang); lang = null; } });
+  k.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!langGeoeffnet) details(); });
+  k.addEventListener('click', (e) => { if (langGeoeffnet || e.target.closest('button')) return; if (schaltbar(g)) kachelSchalten(g); else details(); });
+  k.addEventListener('keydown', (e) => { if (e.key === 'Enter') (schaltbar(g) ? kachelSchalten(g) : details()); });
   return k;
 }
+/** Geräte in Abschnitte sortiert; leere Abschnitte fallen weg */
+function abschnitte(geraete, extra = {}) {
+  return ABSCHNITTE.map(([titel, passt]) => {
+    const l = geraete.filter(passt).sort((a, b) => a.label.localeCompare(b.label, 'de'));
+    if (!l.length) return null;
+    return h('section', { class: 'abschnitt-k' },
+      h('div', { class: 'abschnitt-kopf' }, h('h2', null, titel), extra[titel] ? extra[titel](l) : null),
+      h('div', { class: 'kachel-raster' }, l.map(kachel)));
+  });
+}
+const lichterSchalter = (l) => live(() => { const an = l.filter((g) => lichtAn(g)).length; return h('span', { class: 'mini-drei' }, h('span', { class: 'leise klein' }, an + ' von ' + l.length + ' an'), h('button', { class: 'knopf leicht klein', onclick: () => l.forEach((g) => lichtSchalten(g, false)) }, 'Alle aus'), h('button', { class: 'knopf leicht klein', onclick: () => l.forEach((g) => lichtSchalten(g, true)) }, 'Alle an')); }, 'inline');
 
 /** Name, Raum und Sichtbarkeit eines Geräts in dieser App ändern (openHAB bleibt unverändert) – nur Admins */
+window.zuhauseUmbenennen = (g) => umbenennen(g);
 function umbenennen(g) {
   const alt = (S.namen.geraete || {})[g.name] || {};
   const name = h('input', { type: 'text', value: alt.label || '', placeholder: g.label, maxlength: 60, 'aria-label': 'Name' });
@@ -54,32 +77,24 @@ function umbenennen(g) {
 }
 
 // ------------------------------------------------------------------ Räume
-let alleZeigen = false;
 export function raeumeSeite(z, raumName) {
   const r = M.raeume.find((x) => x.name === raumName) || M.raeume[0];
   if (!r) { leeren(z, h('h1', null, 'Räume'), h('p', { class: 'leise' }, 'In openHAB sind noch keine Räume (Locations) im semantischen Modell angelegt.')); return; }
   const chips = h('div', { class: 'raum-chips' }, M.raeume.map((x) => h('a', { class: 'chip' + (x === r ? ' aktiv' : ''), href: '#/raeume/' + encodeURIComponent(x.name) },
-    x.label, live(() => { const t = raumTemp(x.name); return Number.isFinite(t) ? h('span', { class: 'leise' }, ' · ' + grad(t)) : ''; }, 'inline'))));
-  const sortiert = [...r.geraete].sort((a, b) => ORDNUNG.indexOf(a.klasse) - ORDNUNG.indexOf(b.klasse) || a.label.localeCompare(b.label, 'de'));
-  const lichtIm = r.geraete.filter((g) => g.klasse === 'licht');
-  const raster = h('div', { class: 'karten-raster' }, sortiert.map((g) => geraetKarte(g, { alle: alleZeigen })));
-  leeren(z,
-    chips,
-    h('div', { class: 'seitenkopf' }, h('div', null, h('h1', null, r.label), h('p', { class: 'leise' }, r.geraete.length + ' Geräte · ' + (r.extra ? 'in openHAB keinem Raum zugeordnet' : 'aus dem openHAB-Raummodell'))),
-      h('div', { class: 'kopf-rechts' },
-        h('span', { class: 'karte-ecke statisch' }, stern('raum', r.name, 's')),
-        h('label', { class: 'haken' }, h('input', { type: 'checkbox', checked: alleZeigen, onchange: (e) => { alleZeigen = e.target.checked; raeumeSeite(z, r.name); } }), 'Alle Werte zeigen'),
-        lichtIm.length ? live(() => { const an = lichtIm.filter((g) => lichtAn(g)); return an.length ? h('button', { class: 'knopf leicht', onclick: () => an.forEach((g) => lichtSchalten(g, false)) }, 'Alle Lichter im Raum aus') : h('span', { class: 'leise klein' }, 'alle Lichter aus'); }, 'inline') : null)),
-    r.geraete.length ? raster : h('p', { class: 'leise' }, 'In diesem Raum sind keine Geräte.'));
+    x.label, live(() => { const t = raumTemp(x.name); return Number.isFinite(t) ? h('span', { class: 'leise' }, ' ' + de(t) + '°') : ''; }, 'inline'))));
+  leeren(z, chips,
+    h('div', { class: 'seitenkopf kompakt' }, h('h1', null, r.label), h('span', { class: 'karte-ecke statisch' }, stern('raum', r.name, 's'))),
+    r.geraete.length ? abschnitte(r.geraete, { Licht: lichterSchalter }) : h('p', { class: 'leise' }, 'In diesem Raum sind keine Geräte.'),
+    h('p', { class: 'leise klein hinweis-unten' }, 'Antippen schaltet · lange drücken bzw. Rechtsklick öffnet Helligkeit, Stimmungen, Verlauf und alle Werte'));
 }
 
 // ------------------------------------------------------------------ Licht
 export function lichtSeite(z) {
-  const teile = [h('div', { class: 'seitenkopf' }, h('h1', null, 'Licht')), h('div', { class: 'karte' }, h('div', { class: 'karte-ecke' }, stern('alleLichter', null, 'm')), live(() => alleLichterInhalt()))];
+  const teile = [h('div', { class: 'seitenkopf kompakt' }, h('h1', null, 'Licht')), h('div', { class: 'karte' }, live(() => alleLichterInhalt()))];
   for (const r of M.raeume) {
     const l = r.geraete.filter((g) => g.klasse === 'licht');
     if (!l.length) continue;
-    teile.push(h('h2', { class: 'abschnitt' }, r.label), h('div', { class: 'karten-raster' }, l.map((g) => geraetKarte(g))));
+    teile.push(h('section', { class: 'abschnitt-k' }, h('div', { class: 'abschnitt-kopf' }, h('h2', null, r.label), l.length > 1 ? lichterSchalter(l) : null), h('div', { class: 'kachel-raster' }, l.map(kachel))));
   }
   leeren(z, teile);
 }
@@ -113,21 +128,17 @@ export function energieSeite(z) {
 // ------------------------------------------------------------------ Geräte
 let suche = '';
 export function geraeteSeite(z) {
-  const s = h('input', { type: 'search', placeholder: 'Gerät oder Raum suchen …', value: suche, 'aria-label': 'Geräte suchen' });
+  const sfeld = h('input', { type: 'search', placeholder: 'Gerät oder Raum suchen …', value: suche, 'aria-label': 'Geräte suchen' });
   const box = h('div');
   const fuelle = () => {
     const q = suche.trim().toLowerCase();
-    const alle = [...M.geraete.values()].filter((g) => !g.versteckt && (!q || (g.label + ' ' + g.openhabLabel + ' ' + M.raumName(g.raum) + ' ' + KLASSEN[g.klasse]).toLowerCase().includes(q)));
-    leeren(box, ORDNUNG.map((k) => {
-      const l = alle.filter((g) => g.klasse === k).sort((a, b) => a.label.localeCompare(b.label, 'de'));
-      return l.length ? [h('h2', { class: 'abschnitt' }, KLASSEN[k] + ' (' + l.length + ')'), h('div', { class: 'karten-raster' }, l.map((g) => geraetKarte(g, { mitRaum: true, alle: alleZeigen })))] : null;
-    }), alle.length ? null : h('p', { class: 'leise' }, 'Nichts gefunden.'),
-    M.versteckt.length ? [h('h2', { class: 'abschnitt' }, 'Ausgeblendet (' + M.versteckt.length + ')'), h('div', { class: 'karten-raster' }, M.versteckt.map((g) => geraetKarte(g, { mitRaum: true })))] : null);
+    const alle = [...M.geraete.values()].filter((g) => !g.versteckt && (!q || (g.label + ' ' + g.openhabLabel + ' ' + M.raumName(g.raum)).toLowerCase().includes(q)));
+    leeren(box, abschnitte(alle), alle.length ? null : h('p', { class: 'leise' }, 'Nichts gefunden.'),
+      M.versteckt.length ? h('section', { class: 'abschnitt-k' }, h('div', { class: 'abschnitt-kopf' }, h('h2', null, 'Ausgeblendet')), h('div', { class: 'kachel-raster' }, M.versteckt.map(kachel))) : null);
   };
-  s.addEventListener('input', () => { suche = s.value; fuelle(); });
+  sfeld.addEventListener('input', () => { suche = sfeld.value; fuelle(); });
   fuelle();
-  leeren(z, h('div', { class: 'seitenkopf' }, h('div', null, h('h1', null, 'Geräte'), h('p', { class: 'leise' }, M.geraete.size + ' Geräte aus openHAB')),
-    h('div', { class: 'kopf-rechts' }, s, h('label', { class: 'haken' }, h('input', { type: 'checkbox', checked: alleZeigen, onchange: (e) => { alleZeigen = e.target.checked; fuelle(); } }), 'Alle Werte'))), box);
+  leeren(z, h('div', { class: 'seitenkopf kompakt' }, h('h1', null, 'Geräte'), h('div', { class: 'kopf-rechts' }, sfeld)), box);
 }
 
 // ------------------------------------------------------------------ Benutzer & Einstellungen
